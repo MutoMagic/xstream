@@ -1,6 +1,6 @@
 ﻿namespace xstream
 {
-    partial class xstream
+    partial class Xstream
     {
         /// <summary>
         ///  Required designer variable.
@@ -30,13 +30,13 @@
         {
             this.SuspendLayout();
             // 
-            // xstream
+            // Xstream
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 17F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(800, 450);
-            this.Name = "xstream";
-            this.Text = "xStream";
+            this.Name = "Xstream";
+            this.Text = "Xstream";
             this.ResumeLayout(false);
 
         }
