@@ -4,15 +4,12 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
+    <StartupObject>xstream.Program</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>
-    <Reference Include="SmartGlass">
-      <HintPath>..\SmartGlassCli-v1.0.5-windows-x64\SmartGlass.dll</HintPath>
-    </Reference>
-    <Reference Include="XboxWebApi">
-      <HintPath>..\XboxWebApiCli-v0.2.5-windows-x64\XboxWebApi.dll</HintPath>
-    </Reference>
+    <ProjectReference Include="..\xbox-smartglass-csharp\SmartGlass\SmartGlass.csproj" />
+    <ProjectReference Include="..\xbox-webapi-csharp\XboxWebApi\XboxWebApi.csproj" />
   </ItemGroup>
 
 </Project>
