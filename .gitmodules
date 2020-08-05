@@ -1,0 +1,6 @@
+[submodule "xbox-smartglass-csharp"]
+	path = xbox-smartglass-csharp
+	url = https://github.com/OpenXbox/xbox-smartglass-csharp.git
+[submodule "xbox-webapi-csharp"]
+	path = xbox-webapi-csharp
+	url = https://github.com/OpenXbox/xbox-webapi-csharp.git
