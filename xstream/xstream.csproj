@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="SmartGlass">
+      <HintPath>..\SmartGlassCli-v1.0.5-windows-x64\SmartGlass.dll</HintPath>
+    </Reference>
+    <Reference Include="XboxWebApi">
+      <HintPath>..\XboxWebApiCli-v0.2.5-windows-x64\XboxWebApi.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>
