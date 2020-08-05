@@ -66,7 +66,7 @@ namespace xstream
                 fs.Close();
             }
 
-            Discover();
+            Discover().Wait();
 
             Shell.PressAnyKeyToContinue();
             FreeConsole();
@@ -77,18 +77,22 @@ namespace xstream
             Application.Run(new Xstream(auth));
         }
 
+        async static Task<int> Discover()
+        {
+            Console.WriteLine("Name (HardwareId) Address LiveId");
+
+            IEnumerable<SmartGlass.Device> devices = await SmartGlass.Device.DiscoverAsync();
+            foreach (SmartGlass.Device device in devices)
+            {
+                Console.WriteLine($"{device.Name} ({device.HardwareId}) {device.Address} {device.LiveId}");
+            }
+
+            return 0;
+        }
+
         [DllImport("kernel32")]
         static extern bool AllocConsole();
         [DllImport("kernel32")]
         static extern bool FreeConsole();
-
-        async static void Discover()
-        {
-            IEnumerable<SmartGlass.Device> devices = await SmartGlass.Device.DiscoverAsync();
-            foreach (SmartGlass.Device device in devices)
-            {
-                Console.WriteLine($"{device.Name} ({device.HardwareId}) {device.Address}");
-            }
-        }
     }
 }
