@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using XboxWebApi.Authentication;
 using XboxWebApi.Authentication.Model;
+using XboxWebApi.Services;
+using XboxWebApi.Services.Api;
 
 namespace xstream
 {
@@ -63,10 +65,12 @@ namespace xstream
 
                 FileStream fs = new FileStream(tokenFilePath, FileMode.Open);
                 auth = AuthenticationService.LoadFromFile(fs);
+                auth.Authenticate();// 令牌可能已过期，需要重新认证
                 fs.Close();
             }
 
             Discover().Wait();
+            StartNano().Wait();
 
             Shell.PressAnyKeyToContinue();
             FreeConsole();
@@ -79,14 +83,20 @@ namespace xstream
 
         async static Task<int> Discover()
         {
-            Console.WriteLine("Name (HardwareId) Address LiveId");
+            Console.WriteLine("{0,-50} {1,20} {2,-20}", "Name(HardwareId)", "Address", "LiveId");
 
             IEnumerable<SmartGlass.Device> devices = await SmartGlass.Device.DiscoverAsync();
             foreach (SmartGlass.Device device in devices)
             {
-                Console.WriteLine($"{device.Name} ({device.HardwareId}) {device.Address} {device.LiveId}");
+                Console.WriteLine("{0,-50} {1,20} {2,-20}",
+                    $"{device.Name}({device.HardwareId})", device.Address, device.LiveId);
             }
 
+            return 0;
+        }
+
+        async static Task<int> StartNano()
+        {
             return 0;
         }
 
