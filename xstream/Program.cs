@@ -48,14 +48,29 @@ namespace xstream
                 auth = new AuthenticationService(rep);
 
                 if (!auth.Authenticate())
-                    throw new Exception("Authentication failed!");
+                {
+                    Shell.WriteLine("Error: Authentication failed!");
+                    Shell.PressAnyKeyToContinue();
+                    return;
+                }
 
                 Console.WriteLine(auth.XToken);
                 Console.WriteLine(auth.UserInformation);
 
                 // Save token to JSON
 
-                FileStream tokenOutputFile = new FileStream(tokenFilePath, FileMode.Create);
+                FileStream tokenOutputFile = null;
+                try
+                {
+                    tokenOutputFile = new FileStream(tokenFilePath, FileMode.Create);
+                }
+                catch (Exception e)
+                {
+                    Shell.WriteLine("Error: Failed to open token outputfile \'{0}\', error: {1}",
+                        tokenOutputFile, e.Message);
+                    Shell.PressAnyKeyToContinue();
+                    return;
+                }
                 auth.DumpToFile(tokenOutputFile);
                 tokenOutputFile.Close();
 
@@ -68,7 +83,12 @@ namespace xstream
 
                 FileStream fs = new FileStream(tokenFilePath, FileMode.Open);
                 auth = AuthenticationService.LoadFromFile(fs);
-                auth.Authenticate();// 令牌可能已过期，需要重新认证
+                if (!auth.Authenticate())
+                {
+                    Shell.WriteLine("Error: 令牌已过期，需要重新认证！");
+                    Shell.PressAnyKeyToContinue();
+                    return;
+                }
                 fs.Close();
             }
 
@@ -77,19 +97,41 @@ namespace xstream
             Console.Write("Input IP Address or hostname: ");
             string addressOrHostname = Console.ReadLine();
             Console.WriteLine($"Connecting to {addressOrHostname}...");
-            Task<SmartGlassClient> connect = SmartGlassClient.ConnectAsync(
-                    addressOrHostname, auth.XToken.UserInformation.Userhash, auth.XToken.Jwt);
-            connect.Wait();
-            // 如果Task失败了GetResult()会直接抛出异常，而Task.Result会抛出AggregateException
-            SmartGlassClient client = connect.GetAwaiter().GetResult();
+            SmartGlassClient client = null;
+            try
+            {
+                Task<SmartGlassClient> connect = SmartGlassClient.ConnectAsync(
+                        addressOrHostname, auth.XToken.UserInformation.Userhash, auth.XToken.Jwt);
+                try
+                {
+                    connect.Wait();
+                }
+                catch (AggregateException e)
+                {
+                    throw e.InnerException;
+                }
+                // 如果Task失败了GetResult()会直接抛出异常，而Task.Result会抛出AggregateException
+                client = connect.GetAwaiter().GetResult();
+            }
+            catch (SmartGlassException e)
+            {
+                Shell.WriteLine($"Error: Failed to connect: {e.Message}");
+            }
+            catch (TimeoutException)
+            {
+                Shell.WriteLine("Error: Timeout while connecting");
+            }
 
             Shell.PressAnyKeyToContinue();
             FreeConsole();
 
-            Application.SetHighDpiMode(HighDpiMode.SystemAware);
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Xstream(auth, client));
+            if (client != null)
+            {
+                Application.SetHighDpiMode(HighDpiMode.SystemAware);
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                Application.Run(new Xstream(auth, client));
+            }
         }
 
         async static Task<int> Discover()
