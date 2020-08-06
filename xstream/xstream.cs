@@ -20,14 +20,16 @@ namespace xstream
     {
         AuthenticationService auth;
         SmartGlassClient client;
+        string addressOrHostname;
 
-        public Xstream(AuthenticationService auth, SmartGlassClient client)
+        public Xstream(AuthenticationService auth, SmartGlassClient client, string addressOrHostname)
         {
             InitializeComponent();
 
             this.auth = auth;
             this.client = client;
-            StartNano();
+            this.addressOrHostname = addressOrHostname;
+            StartNano();// gamestreaming
         }
 
         async Task<int> StartNano()

@@ -125,7 +125,7 @@ namespace xstream
                 Application.SetHighDpiMode(HighDpiMode.SystemAware);
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
-                Application.Run(new Xstream(auth, client));
+                Application.Run(new Xstream(auth, client, addressOrHostname));
             }
         }
 
