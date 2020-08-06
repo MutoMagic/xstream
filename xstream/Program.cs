@@ -77,9 +77,11 @@ namespace xstream
             Console.Write("Input IP Address or hostname: ");
             string addressOrHostname = Console.ReadLine();
             Console.WriteLine($"Connecting to {addressOrHostname}...");
-            Task<SmartGlassClient> c = Connect(addressOrHostname, auth);
+            Task<SmartGlassClient> connect = SmartGlassClient.ConnectAsync(
+                    addressOrHostname, auth.XToken.UserInformation.Userhash, auth.XToken.Jwt);
+            connect.Wait();
             // 如果Task失败了GetResult()会直接抛出异常，而Task.Result会抛出AggregateException
-            SmartGlassClient client = c.GetAwaiter().GetResult();
+            SmartGlassClient client = connect.GetAwaiter().GetResult();
 
             Shell.PressAnyKeyToContinue();
             FreeConsole();
@@ -102,23 +104,6 @@ namespace xstream
             }
 
             return 0;
-        }
-
-        async static Task<SmartGlassClient> Connect(string addressOrHostname, AuthenticationService auth)
-        {
-            SmartGlassClient client;
-            try
-            {
-                IPAddress address = IPAddress.Parse(addressOrHostname);
-                client = await SmartGlassClient.ConnectAsync(
-                    address, auth.XToken.UserInformation.Userhash, auth.XToken.Jwt);
-            }
-            catch (FormatException)
-            {
-                client = await SmartGlassClient.ConnectAsync(
-                    addressOrHostname, auth.XToken.UserInformation.Userhash, auth.XToken.Jwt);
-            }
-            return client;
         }
 
         [DllImport("kernel32")]
