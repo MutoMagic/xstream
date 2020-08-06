@@ -115,7 +115,7 @@ namespace xstream
             }
 
             Shell.PressAnyKeyToContinue();
-            FreeConsole();
+            //FreeConsole();
 
             if (client != null)
             {

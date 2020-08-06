@@ -37,7 +37,7 @@ namespace xstream
             // Modify standard config, if desired
 
             GamestreamSession session = await client.BroadcastChannel.StartGamestreamAsync(config);
-            Debug.WriteLine($"Connecting to NANO // TCP: {session.TcpPort}, UDP: {session.UdpPort}");
+            Console.WriteLine($"Connecting to NANO // TCP: {session.TcpPort}, UDP: {session.UdpPort}");
 
             return 0;
         }
