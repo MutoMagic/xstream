@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -103,10 +104,21 @@ namespace xstream
             return 0;
         }
 
-        async static Task<SmartGlassClient> Connect(String addressOrHostname, AuthenticationService auth)
+        async static Task<SmartGlassClient> Connect(string addressOrHostname, AuthenticationService auth)
         {
-            return await SmartGlassClient.ConnectAsync(
-                addressOrHostname, auth.XToken.UserInformation.Userhash, auth.XToken.Jwt);
+            SmartGlassClient client;
+            try
+            {
+                IPAddress address = IPAddress.Parse(addressOrHostname);
+                client = await SmartGlassClient.ConnectAsync(
+                    address, auth.XToken.UserInformation.Userhash, auth.XToken.Jwt);
+            }
+            catch (FormatException)
+            {
+                client = await SmartGlassClient.ConnectAsync(
+                    addressOrHostname, auth.XToken.UserInformation.Userhash, auth.XToken.Jwt);
+            }
+            return client;
         }
 
         [DllImport("kernel32")]
