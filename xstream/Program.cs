@@ -102,7 +102,7 @@ namespace xstream
             {
                 Task<SmartGlassClient> connect = SmartGlassClient.ConnectAsync(
                         addressOrHostname, auth.XToken.UserInformation.Userhash, auth.XToken.Jwt);
-                // 如果Task失败了GetResult()会直接抛出异常，而Task.Result会抛出AggregateException
+                // 如果Task失败了GetAwaiter()会直接抛出异常，而Task.Wait()会抛出AggregateException
                 client = connect.GetAwaiter().GetResult();
             }
             catch (SmartGlassException e)
@@ -119,6 +119,9 @@ namespace xstream
 
             if (client != null)
             {
+                Console.Clear();
+                Shell.WriteLine("Note: 连接成功");
+
                 Application.SetHighDpiMode(HighDpiMode.SystemAware);
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);

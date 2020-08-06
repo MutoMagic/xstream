@@ -27,7 +27,7 @@ namespace xstream
 
             this.auth = auth;
             this.client = client;
-            StartNano().Wait();
+            StartNano();
         }
 
         async Task<int> StartNano()
