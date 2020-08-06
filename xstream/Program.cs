@@ -83,13 +83,13 @@ namespace xstream
 
         async static Task<int> Discover()
         {
-            Console.WriteLine("{0,-50} {1,20} {2,-20}", "Name(HardwareId)", "Address", "LiveId");
+            Console.WriteLine("{0,-15} {1,36} {2,15} {3,16}", "Name", "HardwareId", "Address", "LiveId");
 
             IEnumerable<SmartGlass.Device> devices = await SmartGlass.Device.DiscoverAsync();
             foreach (SmartGlass.Device device in devices)
             {
-                Console.WriteLine("{0,-50} {1,20} {2,-20}",
-                    $"{device.Name}({device.HardwareId})", device.Address, device.LiveId);
+                Console.WriteLine("{0,-15} {1,36} {2,15} {3,16}",
+                    device.Name, device.HardwareId, device.Address, device.LiveId);
             }
 
             return 0;
