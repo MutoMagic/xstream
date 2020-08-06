@@ -1,3 +1,5 @@
+using SmartGlass;
+using SmartGlass.Common;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -70,7 +72,14 @@ namespace xstream
             }
 
             Discover().Wait();
-            StartNano().Wait();
+
+            Console.Write("Input IP Address or hostname: ");
+            string addressOrHostname = Console.ReadLine();
+            Console.WriteLine($"Connecting to {addressOrHostname}...");
+            Task<SmartGlassClient> connect = SmartGlassClient.ConnectAsync(
+                addressOrHostname, auth.XToken.UserInformation.Userhash, auth.XToken.Jwt);
+            connect.Wait();
+            SmartGlassClient client = connect.GetAwaiter().GetResult();
 
             Shell.PressAnyKeyToContinue();
             FreeConsole();
@@ -78,25 +87,20 @@ namespace xstream
             Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Xstream(auth));
+            Application.Run(new Xstream(auth, client));
         }
 
         async static Task<int> Discover()
         {
-            Console.WriteLine("{0,-15} {1,36} {2,15} {3,16}", "Name", "HardwareId", "Address", "LiveId");
+            Console.WriteLine("{0,-15} {1,-36} {2,-15} {3,-16}", "Name", "HardwareId", "Address", "LiveId");
 
             IEnumerable<SmartGlass.Device> devices = await SmartGlass.Device.DiscoverAsync();
             foreach (SmartGlass.Device device in devices)
             {
-                Console.WriteLine("{0,-15} {1,36} {2,15} {3,16}",
+                Console.WriteLine("{0,-15} {1,-36} {2,-15} {3,-16}",
                     device.Name, device.HardwareId, device.Address, device.LiveId);
             }
 
-            return 0;
-        }
-
-        async static Task<int> StartNano()
-        {
             return 0;
         }
 

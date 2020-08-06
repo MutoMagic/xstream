@@ -1,4 +1,6 @@
-﻿using System;
+﻿using SmartGlass;
+using SmartGlass.Common;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -16,9 +18,28 @@ namespace xstream
 {
     public partial class Xstream : Form
     {
-        public Xstream(AuthenticationService auth)
+        AuthenticationService auth;
+        SmartGlassClient client;
+
+        public Xstream(AuthenticationService auth, SmartGlassClient client)
         {
             InitializeComponent();
+
+            this.auth = auth;
+            this.client = client;
+            StartNano().Wait();
+        }
+
+        async Task<int> StartNano()
+        {
+            // Get general gamestream configuration
+            GamestreamConfiguration config = GamestreamConfiguration.GetStandardConfig();
+            // Modify standard config, if desired
+
+            GamestreamSession session = await client.BroadcastChannel.StartGamestreamAsync(config);
+            Debug.WriteLine($"Connecting to NANO // TCP: {session.TcpPort}, UDP: {session.UdpPort}");
+
+            return 0;
         }
     }
 }
