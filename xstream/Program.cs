@@ -18,6 +18,11 @@ namespace xstream
 {
     static class Program
     {
+        public static string tokenFilePath = null;
+        public static AuthenticationService auth = null;
+        public static SmartGlassClient client = null;
+        public static string addressOrHostname = null;
+
         /// <summary>
         ///  The main entry point for the application.
         /// </summary>
@@ -27,9 +32,7 @@ namespace xstream
             AllocConsole();
 
             Console.Write("tokenFilePath: ");
-            string tokenFilePath = Console.ReadLine();
-
-            AuthenticationService auth = null;
+            tokenFilePath = Console.ReadLine();
 
             if (!File.Exists(tokenFilePath))
             {
@@ -103,9 +106,8 @@ namespace xstream
             Discover().Wait();
 
             Console.Write("Input IP Address or hostname: ");
-            string addressOrHostname = Console.ReadLine();
+            addressOrHostname = Console.ReadLine();
             Console.WriteLine($"Connecting to {addressOrHostname}...");
-            SmartGlassClient client = null;
             try
             {
                 Task<SmartGlassClient> connect = SmartGlassClient.ConnectAsync(
@@ -133,7 +135,7 @@ namespace xstream
             Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Xstream(auth, client, addressOrHostname));
+            Application.Run(new Xstream());
         }
 
         async static Task Discover()
@@ -149,8 +151,8 @@ namespace xstream
         }
 
         [DllImport("kernel32")]
-        static extern bool AllocConsole();
+        public static extern bool AllocConsole();
         [DllImport("kernel32")]
-        static extern bool FreeConsole();
+        public static extern bool FreeConsole();
     }
 }

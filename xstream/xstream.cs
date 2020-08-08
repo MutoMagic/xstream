@@ -21,30 +21,22 @@ namespace xstream
 {
     public partial class Xstream : Form
     {
-        AuthenticationService auth;
-        SmartGlassClient client;
-        string addressOrHostname;
-
-        public Xstream(AuthenticationService auth, SmartGlassClient client, string addressOrHostname)
+        public Xstream()
         {
             InitializeComponent();
-
-            this.auth = auth;
-            this.client = client;
-            this.addressOrHostname = addressOrHostname;
             StartNano();// gamestreaming
         }
 
-        async Task<int> StartNano()
+        async Task StartNano()
         {
             // Get general gamestream configuration
             GamestreamConfiguration config = GamestreamConfiguration.GetStandardConfig();
             // Modify standard config, if desired
 
-            GamestreamSession session = await client.BroadcastChannel.StartGamestreamAsync(config);
+            GamestreamSession session = await Program.client.BroadcastChannel.StartGamestreamAsync(config);
             Console.WriteLine($"Connecting to NANO // TCP: {session.TcpPort}, UDP: {session.UdpPort}");
 
-            NanoClient nano = new NanoClient(addressOrHostname, session);
+            NanoClient nano = new NanoClient(Program.addressOrHostname, session);
 
             // General Handshaking & Opening channels
             Console.WriteLine($"Running protocol init...");
@@ -77,8 +69,6 @@ namespace xstream
 
             /* Run a mainloop, to gather controller input events or similar */
             Console.WriteLine("Stream is running");
-
-            return 0;
         }
     }
 }
