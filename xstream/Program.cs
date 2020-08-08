@@ -149,6 +149,7 @@ namespace xstream
             Console.WriteLine($"Connecting to NANO // TCP: {session.TcpPort}, UDP: {session.UdpPort}");
 
             // gamestreaming
+            // ------------------------------------------------------------------------------------
 
             NanoClient nano = InitNano(addressOrHostname, session).GetAwaiter().GetResult();
             if (nano == null)
@@ -157,13 +158,15 @@ namespace xstream
                 return;
             }
 
+            // SDL / FFMPEG setup
+
             Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Xstream());
         }
 
-        async static Task Discover()
+        async static Task<int> Discover()
         {
             Console.WriteLine("{0,-15} {1,-36} {2,-15} {3,-16}", "Name", "HardwareId", "Address", "LiveId");
 
@@ -173,6 +176,8 @@ namespace xstream
                 Console.WriteLine("{0,-15} {1,-36} {2,-15} {3,-16}",
                     device.Name, device.HardwareId, device.Address, device.LiveId);
             }
+
+            return 0;
         }
 
         async static Task<NanoClient> InitNano(string addressOrHostname, GamestreamSession session)
