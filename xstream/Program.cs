@@ -196,6 +196,8 @@ namespace xstream
 
             // Run a mainloop, to gather controller input events or similar
 
+            FreeConsole();
+
             Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);

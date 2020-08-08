@@ -27,6 +27,7 @@ namespace xstream
 
             // gamestreaming
 
+            this.ClientSize = new Size((int)Program._videoFormat.Width, (int)Program._videoFormat.Height);
         }
     }
 }
