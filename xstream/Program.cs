@@ -53,12 +53,12 @@ namespace xstream
 
                 // Call requestUrl via WebWidget or manually and authenticate
 
-                string url = Console.ReadLine();
-                WindowsLiveResponse rep = AuthenticationService.ParseWindowsLiveResponse(url);
-                auth = new AuthenticationService(rep);
-
                 try
                 {
+                    string url = Console.ReadLine();
+                    WindowsLiveResponse rep = AuthenticationService.ParseWindowsLiveResponse(url);
+                    auth = new AuthenticationService(rep);
+
                     auth.Authenticate();
                 }
                 catch (Exception e)
@@ -162,6 +162,7 @@ namespace xstream
             }
 
             // SDL / FFMPEG setup
+
 
             Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.EnableVisualStyles();
