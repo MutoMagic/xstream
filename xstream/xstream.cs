@@ -12,22 +12,42 @@ using System.Drawing;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using XboxWebApi.Authentication;
 using XboxWebApi.Authentication.Model;
+using Xstream.Codec;
 
-namespace xstream
+namespace Xstream
 {
     public partial class Xstream : Form
     {
+        readonly CancellationTokenSource _cancellationTokenSource;
+        FormAudio _audioRenderer;
+
+        string _fontSourceRegular;
+        string _fontSourceBold;
+
+        public FFmpegDecoder Decoder;
+
         public Xstream()
         {
             InitializeComponent();
 
-            // gamestreaming
+            // Start Nano (gamestreaming)
 
-            this.ClientSize = new Size((int)Program._videoFormat.Width, (int)Program._videoFormat.Height);
+            _cancellationTokenSource = new CancellationTokenSource();
+
+            _audioRenderer = new FormAudio(
+                (int)Program.AudioFormat.SampleRate, (int)Program.AudioFormat.Channels);
+
+            // FormVideo
+            this.ClientSize = new Size((int)Program.VideoFormat.Width, (int)Program.VideoFormat.Height);
+            _fontSourceRegular = $"{AppDomain.CurrentDomain.BaseDirectory}Fonts/Xolonium-Regular.ttf";
+            _fontSourceBold = $"{AppDomain.CurrentDomain.BaseDirectory}Fonts/Xolonium-Bold.ttf";
+
+            Decoder = new FFmpegDecoder();
         }
     }
 }

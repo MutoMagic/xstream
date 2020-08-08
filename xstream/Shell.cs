@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace xstream
+namespace Xstream
 {
     static class Shell
     {

@@ -18,16 +18,18 @@ using XboxWebApi.Authentication.Model;
 using XboxWebApi.Services;
 using XboxWebApi.Services.Api;
 
-namespace xstream
+namespace Xstream
 {
     static class Program
     {
-        public static string _userHash = null;
-        public static string _xToken = null;
+        public static string UserHash = null;
+        public static string XToken = null;
 
-        public static AudioFormat _audioFormat = null;
-        public static VideoFormat _videoFormat = null;
-        public static AudioFormat _chatAudioFormat = null;
+        public static NanoClient Nano = null;
+
+        public static AudioFormat AudioFormat = null;
+        public static VideoFormat VideoFormat = null;
+        public static AudioFormat ChatAudioFormat = null;
 
         /// <summary>
         ///  The main entry point for the application.
@@ -111,8 +113,8 @@ namespace xstream
                 fs.Close();
             }
 
-            _userHash = auth.XToken.UserInformation.Userhash;
-            _xToken = auth.XToken.Jwt;
+            UserHash = auth.XToken.UserInformation.Userhash;
+            XToken = auth.XToken.Jwt;
 
             Discover().Wait();
 
@@ -124,7 +126,7 @@ namespace xstream
             try
             {
                 Task<SmartGlassClient> connect = SmartGlassClient.ConnectAsync(
-                        addressOrHostname, _userHash, _xToken);
+                        addressOrHostname, UserHash, XToken);
 
                 // 如果Task失败了GetAwaiter()会直接抛出异常，而Task.Wait()会抛出AggregateException
                 client = connect.GetAwaiter().GetResult();
@@ -151,14 +153,14 @@ namespace xstream
             Console.WriteLine($"Connecting to NANO // TCP: {session.TcpPort}, UDP: {session.UdpPort}");
 
             Console.WriteLine($"Running protocol init...");
-            NanoClient nano = new NanoClient(addressOrHostname, session);
+            Nano = new NanoClient(addressOrHostname, session);
             try
             {
                 // General Handshaking & Opening channels
-                nano.InitializeProtocolAsync().Wait();
+                Nano.InitializeProtocolAsync().Wait();
 
                 // Start Controller input channel
-                nano.OpenInputChannelAsync(1280, 720).Wait();
+                Nano.OpenInputChannelAsync(1280, 720).Wait();
 
                 //IConsumer consumer = /* initialize consumer */;
                 //nano.AddConsumer(consumer);
@@ -170,20 +172,20 @@ namespace xstream
                 // Sets desired AV formats
                 Console.WriteLine("Initializing AV stream (handshaking)...");
 
-                _audioFormat = nano.AudioFormats[0];
-                _videoFormat = nano.VideoFormats[0];
+                AudioFormat = Nano.AudioFormats[0];
+                VideoFormat = Nano.VideoFormats[0];
 
-                nano.InitializeStreamAsync(_audioFormat, _videoFormat).Wait();
+                Nano.InitializeStreamAsync(AudioFormat, VideoFormat).Wait();
 
                 // Start ChatAudio channel
                 // TODO: Send opus audio chat samples to console
-                _chatAudioFormat = new AudioFormat(1, 24000, AudioCodec.Opus);
-                nano.OpenChatAudioChannelAsync(_chatAudioFormat).Wait();
+                ChatAudioFormat = new AudioFormat(1, 24000, AudioCodec.Opus);
+                Nano.OpenChatAudioChannelAsync(ChatAudioFormat).Wait();
 
                 // Tell console to start sending AV frames
                 Console.WriteLine("Starting stream...");
 
-                nano.StartStreamAsync().Wait();
+                Nano.StartStreamAsync().Wait();
 
                 Shell.WriteLine("Note: Stream is running");
             }

@@ -1,4 +1,4 @@
-﻿namespace xstream
+﻿namespace Xstream
 {
     partial class Xstream
     {

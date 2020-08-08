@@ -4,8 +4,12 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
-    <StartupObject>xstream.Program</StartupObject>
+    <StartupObject>Xstream.Program</StartupObject>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FFmpeg.AutoGen" Version="4.1.0.2" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\xbox-smartglass-csharp\SmartGlass\SmartGlass.csproj" />
