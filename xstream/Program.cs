@@ -110,6 +110,9 @@ namespace xstream
                 fs.Close();
             }
 
+            _userHash = auth.XToken.UserInformation.Userhash;
+            _xToken = auth.XToken.Jwt;
+
             Discover().Wait();
 
             Console.Write("Input IP Address or hostname: ");
@@ -119,7 +122,7 @@ namespace xstream
             try
             {
                 Task<SmartGlassClient> connect = SmartGlassClient.ConnectAsync(
-                        addressOrHostname, auth.XToken.UserInformation.Userhash, auth.XToken.Jwt);
+                        addressOrHostname, _userHash, _xToken);
 
                 // 如果Task失败了GetAwaiter()会直接抛出异常，而Task.Wait()会抛出AggregateException
                 client = connect.GetAwaiter().GetResult();
@@ -166,18 +169,16 @@ namespace xstream
             Application.Run(new Xstream());
         }
 
-        async static Task<int> Discover()
+        async static Task Discover()
         {
             Console.WriteLine("{0,-15} {1,-36} {2,-15} {3,-16}", "Name", "HardwareId", "Address", "LiveId");
 
-            IEnumerable<SmartGlass.Device> devices = await SmartGlass.Device.DiscoverAsync();
-            foreach (SmartGlass.Device device in devices)
+            IEnumerable<Device> devices = await Device.DiscoverAsync();
+            foreach (Device device in devices)
             {
                 Console.WriteLine("{0,-15} {1,-36} {2,-15} {3,-16}",
                     device.Name, device.HardwareId, device.Address, device.LiveId);
             }
-
-            return 0;
         }
 
         async static Task<NanoClient> InitNano(string addressOrHostname, GamestreamSession session)
