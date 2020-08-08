@@ -47,9 +47,13 @@ namespace xstream
                 WindowsLiveResponse rep = AuthenticationService.ParseWindowsLiveResponse(url);
                 auth = new AuthenticationService(rep);
 
-                if (!auth.Authenticate())
+                try
                 {
-                    Shell.WriteLine("Error: Authentication failed!");
+                    auth.Authenticate();
+                }
+                catch (Exception e)
+                {
+                    Shell.WriteLine($"Error: Authentication failed, error: {e.Message}");
                     Shell.PressAnyKeyToContinue();
                     return;
                 }
@@ -83,9 +87,13 @@ namespace xstream
 
                 FileStream fs = new FileStream(tokenFilePath, FileMode.Open);
                 auth = AuthenticationService.LoadFromFile(fs);
-                if (!auth.Authenticate())
+                try
                 {
-                    Shell.WriteLine("Error: 令牌已过期，需要重新认证！");
+                    auth.Authenticate();
+                }
+                catch (Exception e)
+                {
+                    Shell.WriteLine($"Error: Failed to refresh XBL tokens, error: {e.Message}");
                     Shell.PressAnyKeyToContinue();
                     return;
                 }
@@ -102,34 +110,33 @@ namespace xstream
             {
                 Task<SmartGlassClient> connect = SmartGlassClient.ConnectAsync(
                         addressOrHostname, auth.XToken.UserInformation.Userhash, auth.XToken.Jwt);
+
                 // 如果Task失败了GetAwaiter()会直接抛出异常，而Task.Wait()会抛出AggregateException
                 client = connect.GetAwaiter().GetResult();
             }
-            catch (SmartGlassException e)
+            catch (Exception e)
             {
-                Shell.WriteLine($"Error: Failed to connect: {e.Message}");
-            }
-            catch (TimeoutException)
-            {
-                Shell.WriteLine("Error: Timeout while connecting");
+                if (e is SmartGlassException)
+                    Shell.WriteLine($"Error: Failed to connect: {e.Message}");
+                else if (e is TimeoutException)
+                    Shell.WriteLine($"Error: Timeout while connecting: {e.Message}");
+                else
+                    Shell.WriteLine($"Error: {e}");
+
+                Shell.PressAnyKeyToContinue();
+                return;
             }
 
-            Shell.PressAnyKeyToContinue();
-            //FreeConsole();
+            Console.Clear();
+            Shell.WriteLine("Note: 连接成功");
 
-            if (client != null)
-            {
-                Console.Clear();
-                Shell.WriteLine("Note: 连接成功");
-
-                Application.SetHighDpiMode(HighDpiMode.SystemAware);
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
-                Application.Run(new Xstream(auth, client, addressOrHostname));
-            }
+            Application.SetHighDpiMode(HighDpiMode.SystemAware);
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new Xstream(auth, client, addressOrHostname));
         }
 
-        async static Task<int> Discover()
+        async static Task Discover()
         {
             Console.WriteLine("{0,-15} {1,-36} {2,-15} {3,-16}", "Name", "HardwareId", "Address", "LiveId");
 
@@ -139,8 +146,6 @@ namespace xstream
                 Console.WriteLine("{0,-15} {1,-36} {2,-15} {3,-16}",
                     device.Name, device.HardwareId, device.Address, device.LiveId);
             }
-
-            return 0;
         }
 
         [DllImport("kernel32")]
