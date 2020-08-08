@@ -24,6 +24,9 @@ namespace xstream
         public Xstream()
         {
             InitializeComponent();
+
+            // gamestreaming
+
         }
     }
 }

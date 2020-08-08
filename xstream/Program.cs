@@ -5,6 +5,7 @@ using SmartGlass.Nano;
 using SmartGlass.Nano.Packets;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -21,12 +22,12 @@ namespace xstream
 {
     static class Program
     {
-        static string _userHash = null;
-        static string _xToken = null;
+        public static string _userHash = null;
+        public static string _xToken = null;
 
-        static AudioFormat _audioFormat = null;
-        static VideoFormat _videoFormat = null;
-        static AudioFormat _chatAudioFormat = null;
+        public static AudioFormat _audioFormat = null;
+        public static VideoFormat _videoFormat = null;
+        public static AudioFormat _chatAudioFormat = null;
 
         /// <summary>
         ///  The main entry point for the application.
@@ -117,6 +118,7 @@ namespace xstream
 
             Console.Write("Input IP Address or hostname: ");
             string addressOrHostname = Console.ReadLine();
+
             Console.WriteLine($"Connecting to {addressOrHostname}...");
             SmartGlassClient client;
             try
@@ -140,61 +142,23 @@ namespace xstream
                 return;
             }
 
-            Shell.WriteLine("Note: 已连接到控制台");
-
             // Get general gamestream configuration
             GamestreamConfiguration config = GamestreamConfiguration.GetStandardConfig();
             // Modify standard config, if desired
 
             GamestreamSession session = client.BroadcastChannel.StartGamestreamAsync(config)
                 .GetAwaiter().GetResult();
-
             Console.WriteLine($"Connecting to NANO // TCP: {session.TcpPort}, UDP: {session.UdpPort}");
 
-            // gamestreaming
-            // ------------------------------------------------------------------------------------
-
-            NanoClient nano = InitNano(addressOrHostname, session).GetAwaiter().GetResult();
-            if (nano == null)
-            {
-                Shell.WriteLine("Error: Nano failed!");
-                return;
-            }
-
-            // SDL / FFMPEG setup
-
-
-            Application.SetHighDpiMode(HighDpiMode.SystemAware);
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Xstream());
-        }
-
-        async static Task Discover()
-        {
-            Console.WriteLine("{0,-15} {1,-36} {2,-15} {3,-16}", "Name", "HardwareId", "Address", "LiveId");
-
-            IEnumerable<Device> devices = await Device.DiscoverAsync();
-            foreach (Device device in devices)
-            {
-                Console.WriteLine("{0,-15} {1,-36} {2,-15} {3,-16}",
-                    device.Name, device.HardwareId, device.Address, device.LiveId);
-            }
-        }
-
-        async static Task<NanoClient> InitNano(string addressOrHostname, GamestreamSession session)
-        {
-            NanoClient nano = new NanoClient(addressOrHostname, session);
-
             Console.WriteLine($"Running protocol init...");
-
+            NanoClient nano = new NanoClient(addressOrHostname, session);
             try
             {
                 // General Handshaking & Opening channels
-                await nano.InitializeProtocolAsync();
+                nano.InitializeProtocolAsync().Wait();
 
                 // Start Controller input channel
-                await nano.OpenInputChannelAsync(1280, 720);
+                nano.OpenInputChannelAsync(1280, 720).Wait();
 
                 //IConsumer consumer = /* initialize consumer */;
                 //nano.AddConsumer(consumer);
@@ -209,25 +173,48 @@ namespace xstream
                 _audioFormat = nano.AudioFormats[0];
                 _videoFormat = nano.VideoFormats[0];
 
-                await nano.InitializeStreamAsync(_audioFormat, _videoFormat);
+                nano.InitializeStreamAsync(_audioFormat, _videoFormat).Wait();
 
                 // Start ChatAudio channel
                 // TODO: Send opus audio chat samples to console
                 _chatAudioFormat = new AudioFormat(1, 24000, AudioCodec.Opus);
-                await nano.OpenChatAudioChannelAsync(_chatAudioFormat);
+                nano.OpenChatAudioChannelAsync(_chatAudioFormat).Wait();
 
                 // Tell console to start sending AV frames
                 Console.WriteLine("Starting stream...");
 
-                await nano.StartStreamAsync();
+                nano.StartStreamAsync().Wait();
+
+                Shell.WriteLine("Note: Stream is running");
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Failed to init Nano, error: {e}");
-                return null;
+                Shell.WriteLine($"Error: Failed to init Nano, error: {e}");
+                Shell.PressAnyKeyToContinue();
+                return;
             }
 
-            return nano;
+            // Run a mainloop, to gather controller input events or similar
+
+            Application.SetHighDpiMode(HighDpiMode.SystemAware);
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new Xstream());
+
+            // finally (dirty)
+            Process.GetCurrentProcess().Kill();
+        }
+
+        async static Task Discover()
+        {
+            Console.WriteLine("{0,-15} {1,-36} {2,-15} {3,-16}", "Name", "HardwareId", "Address", "LiveId");
+
+            IEnumerable<Device> devices = await Device.DiscoverAsync();
+            foreach (Device device in devices)
+            {
+                Console.WriteLine("{0,-15} {1,-36} {2,-15} {3,-16}",
+                    device.Name, device.HardwareId, device.Address, device.LiveId);
+            }
         }
 
         [DllImport("kernel32")]
