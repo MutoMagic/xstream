@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30320.27
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "xstream", "xstream\xstream.csproj", "{9C9EACB1-B898-4B9B-9FE6-787FE404A48C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Xstream", "xstream\Xstream.csproj", "{9C9EACB1-B898-4B9B-9FE6-787FE404A48C}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XboxWebApi", "xbox-webapi-csharp\XboxWebApi\XboxWebApi.csproj", "{E76B8817-7BFF-4A19-9AD6-8038DC550488}"
 EndProject

@@ -47,7 +47,7 @@ namespace Xstream
             _fontSourceRegular = $"{AppDomain.CurrentDomain.BaseDirectory}Fonts/Xolonium-Regular.ttf";
             _fontSourceBold = $"{AppDomain.CurrentDomain.BaseDirectory}Fonts/Xolonium-Bold.ttf";
 
-            Decoder = new FFmpegDecoder();
+            Decoder = new FFmpegDecoder(Program.Nano, Program.AudioFormat, Program.VideoFormat);
         }
     }
 }
