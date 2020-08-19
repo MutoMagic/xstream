@@ -13,6 +13,7 @@ namespace Xstream.Codec
         AudioFormat _audioFormat;
         VideoFormat _videoFormat;
 
+        AudioAssembler _audioAssembler;
         VideoAssembler _videoAssembler;
         DateTime _audioRefTimestamp;
         DateTime _videoRefTimestamp;
@@ -33,6 +34,7 @@ namespace Xstream.Codec
             _audioFormat = audioFormat;
             _videoFormat = videoFormat;
 
+            _audioAssembler = new AudioAssembler();
             _videoAssembler = new VideoAssembler();
 
             _audioRefTimestamp = _nano.Audio.ReferenceTimestamp;
@@ -61,7 +63,7 @@ namespace Xstream.Codec
         public void ConsumeAudioData(object sender, AudioDataEventArgs args)
         {
             // TODO: Sorting
-            AACFrame frame = new AudioAssembler().AssembleAudioFrame(
+            AACFrame frame = _audioAssembler.AssembleAudioFrame(
                 data: args.AudioData,
                 profile: AACProfile.LC,
                 samplingFreq: (int)_audioFormat.SampleRate,

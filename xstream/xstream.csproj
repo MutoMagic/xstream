@@ -24,4 +24,10 @@
     <ProjectReference Include="..\xbox-webapi-csharp\XboxWebApi\XboxWebApi.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Fonts/**/*.ttf" Link="Fonts/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Windows shared FFmpeg libraries | TODO: build by travis -->
+    <None Update="ffmpeg*/x64/*.dll" Link="%(Filename)%(Extension)" Condition="'$(OS)' == 'Windows_NT'" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
