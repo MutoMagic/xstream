@@ -167,7 +167,7 @@ namespace Xstream
              * refer to: https://github.com/OpenXbox/xbox-smartglass-nano-python/issues/7
              * default: GAME_STREAMING_LOW_QUALITY_SETTINGS
              */
-            config.UrcpMaximumRate = 3 * 1000000;
+            config.UrcpMaximumRate = (int)(3.000001 * 1000000);
             config.VideoMaximumHeight = 480;
             config.VideoMaximumFrameRate = 30;
             // config.Unknown4
