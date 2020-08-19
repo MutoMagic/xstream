@@ -4,6 +4,7 @@ using SmartGlass.Nano.Consumer;
 using SmartGlass.Nano.Packets;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -80,10 +81,10 @@ namespace Xstream.Codec
                 doResample = true;
             Initialized = true;
 
-            Console.WriteLine($"Codec ID: {avCodecID}");
-            Console.WriteLine($"Source Sample Format: {avSourceSampleFormat}");
-            Console.WriteLine($"Target Sample Format: {avTargetSampleFormat}");
-            Console.WriteLine($"Channels: {channels}, SampleRate: {sampleRate}");
+            Debug.WriteLine($"Codec ID: {avCodecID}");
+            Debug.WriteLine($"Source Sample Format: {avSourceSampleFormat}");
+            Debug.WriteLine($"Target Sample Format: {avTargetSampleFormat}");
+            Debug.WriteLine($"Channels: {channels}, SampleRate: {sampleRate}");
         }
 
         /// <summary>

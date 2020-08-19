@@ -4,6 +4,7 @@ using SmartGlass.Nano.Consumer;
 using SmartGlass.Nano.Packets;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -89,10 +90,10 @@ namespace Xstream.Codec
                 doResample = true;
             Initialized = true;
 
-            Console.WriteLine($"Codec ID: {avCodecID}");
-            Console.WriteLine($"Source Pixel Format: {avSourcePixelFormat}");
-            Console.WriteLine($"Target Pixel Format: {avTargetPixelFormat}");
-            Console.WriteLine($"Resolution: {videoWidth}x{videoHeight}, FPS: {fps}");
+            Debug.WriteLine($"Codec ID: {avCodecID}");
+            Debug.WriteLine($"Source Pixel Format: {avSourcePixelFormat}");
+            Debug.WriteLine($"Target Pixel Format: {avTargetPixelFormat}");
+            Debug.WriteLine($"Resolution: {videoWidth}x{videoHeight}, FPS: {fps}");
         }
 
         /// <summary>
