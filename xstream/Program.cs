@@ -147,10 +147,37 @@ namespace Xstream
             // Get general gamestream configuration
             GamestreamConfiguration config = GamestreamConfiguration.GetStandardConfig();
             // Modify standard config, if desired
-            config.DynamicBitrateUpdateMs = 3500;
-            config.VideoMaximumWidth = 854;
+            /*
+             * GAME_STREAMING_VERY_HIGH_QUALITY_SETTINGS: 12000000,1080,60,59,0,10,40,170
+             * GAME_STREAMING_HIGH_QUALITY_SETTINGS: 8000000,720,60,59,0,10,40,170
+             * GAME_STREAMING_MEDIUM_QUALITY_SETTINGS: 6000002,720,60,3600,0,40,70,200
+             * GAME_STREAMING_LOW_QUALITY_SETTINGS: 3000001,480,30,3600,0,40,70,200
+             * 
+             * SETTINGS:
+             * Unknown1,Unknown2,Unknown3,Unknown4,Unknown5,Unknown6,Unknown7,Unknown8
+             * Unknown1 UrcpMaximumRate
+             * Unknown2 VideoMaximumHeight
+             * Unknown3 VideoMaximumFrameRate
+             * Unknown4 ?
+             * Unknown5 AudioBufferLengthHns if 0 use Unknown1
+             * Unknown6 AudioSyncMinLatency
+             * Unknown7 AudioSyncDesiredLatency
+             * Unknown8 AudioSyncMaxLatency
+             * 
+             * refer to: https://github.com/OpenXbox/xbox-smartglass-nano-python/issues/7
+             * default: GAME_STREAMING_LOW_QUALITY_SETTINGS
+             */
+            config.UrcpMaximumRate = 3 * 1000000;
             config.VideoMaximumHeight = 480;
             config.VideoMaximumFrameRate = 30;
+            // config.Unknown4
+            config.AudioBufferLengthHns = config.UrcpMaximumRate;
+            config.AudioSyncMinLatency = 40;
+            config.AudioSyncDesiredLatency = 70;
+            config.AudioSyncMaxLatency = 200;
+
+            // 由于小数点向上进位，因此误差 +-1 的情况下，永远满足最小分辨率16:9
+            config.VideoMaximumWidth = (int)Math.Ceiling(config.VideoMaximumHeight / 9.0 * 16);
 
             GamestreamSession session = client.BroadcastChannel.StartGamestreamAsync(config)
                 .GetAwaiter().GetResult();
@@ -164,7 +191,7 @@ namespace Xstream
                 Nano.InitializeProtocolAsync().Wait();
 
                 // Start Controller input channel
-                Nano.OpenInputChannelAsync(1280, 720).Wait();
+                Nano.OpenInputChannelAsync((uint)config.VideoMaximumWidth, (uint)config.VideoMaximumHeight).Wait();
 
                 //IConsumer consumer = /* initialize consumer */;
                 //nano.AddConsumer(consumer);
