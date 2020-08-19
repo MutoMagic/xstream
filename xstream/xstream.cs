@@ -24,7 +24,7 @@ namespace Xstream
     public partial class Xstream : Form
     {
         readonly CancellationTokenSource _cancellationTokenSource;
-        FormAudio _audioRenderer;
+        DxAudio _audioRenderer;
 
         string _fontSourceRegular;
         string _fontSourceBold;
@@ -35,19 +35,27 @@ namespace Xstream
         {
             InitializeComponent();
 
-            // Start Nano (gamestreaming)
+            // DirectX / FFMPEG setup
 
             _cancellationTokenSource = new CancellationTokenSource();
 
-            _audioRenderer = new FormAudio(
+            _audioRenderer = new DxAudio(
                 (int)Program.AudioFormat.SampleRate, (int)Program.AudioFormat.Channels);
 
-            // FormVideo
+            // DxVideo
             this.ClientSize = new Size((int)Program.VideoFormat.Width, (int)Program.VideoFormat.Height);
             _fontSourceRegular = $"{AppDomain.CurrentDomain.BaseDirectory}Fonts/Xolonium-Regular.ttf";
             _fontSourceBold = $"{AppDomain.CurrentDomain.BaseDirectory}Fonts/Xolonium-Bold.ttf";
 
             Decoder = new FFmpegDecoder(Program.Nano, Program.AudioFormat, Program.VideoFormat);
+
+            // TODO:SdlInput
+
+            Program.Nano.AudioFrameAvailable += Decoder.ConsumeAudioData;
+            Program.Nano.VideoFrameAvailable += Decoder.ConsumeVideoData;
+
+            // MainLoop
+
         }
     }
 }

@@ -4,6 +4,7 @@ using SmartGlass.Nano.Consumer;
 using SmartGlass.Nano.Packets;
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Xstream.Codec
@@ -21,6 +22,9 @@ namespace Xstream.Codec
         AVSampleFormat avTargetSampleFormat;
 
         public event Action<PCMSample> SampleDecoded;
+
+        // C #define PushData(AACFrame data) encodedDataQueue.Enqueue(data)
+        public void PushData(AACFrame data) => encodedDataQueue.Enqueue(data);
 
         public FFmpegAudio() : base()
         {
@@ -82,6 +86,18 @@ namespace Xstream.Codec
             Console.WriteLine($"Channels: {channels}, SampleRate: {sampleRate}");
         }
 
+        /// <summary>
+        /// Update Codec context with extradata, needed for decoding
+        /// </summary>
+        /// <param name="codecData">Audiocodec specific data</param>
+        internal override void UpdateCodecParameters(byte[] codecData)
+        {
+            // AVCodecContext->extradata: The allocated memory should be AV_INPUT_BUFFER_PADDING_SIZE bytes larger
+            pCodecContext->extradata = (byte*)ffmpeg.av_mallocz((ulong)codecData.Length + ffmpeg.AV_INPUT_BUFFER_PADDING_SIZE);
+            Marshal.Copy(codecData, 0, (IntPtr)pCodecContext->extradata, codecData.Length);// 在托管对象（数组）和非托管对象（IntPtr）之间进行内容的复制
+            pCodecContext->extradata_size = codecData.Length;
+        }
+
         internal override void SetCodecContextParams(AVCodecContext* codecContext)
         {
             codecContext->sample_rate = sampleRate;
@@ -94,9 +110,13 @@ namespace Xstream.Codec
         {
             SwrContext* resampler = ffmpeg.swr_alloc();
 
+            // 设置源通道数
             ffmpeg.av_opt_set_int(resampler, "in_channel_count", codecContext->channels, 0);
+            // 设置源通道布局
             ffmpeg.av_opt_set_channel_layout(resampler, "in_channel_layout", (long)codecContext->channel_layout, 0);
+            // 设置源采样率
             ffmpeg.av_opt_set_int(resampler, "in_sample_rate", codecContext->sample_rate, 0);
+            // 设置源样本格式
             ffmpeg.av_opt_set_sample_fmt(resampler, "in_sample_fmt", codecContext->sample_fmt, 0);
 
             ffmpeg.av_opt_set_int(resampler, "out_channel_count", codecContext->channels, 0);

@@ -34,9 +34,9 @@ namespace Xstream.Codec
         }
 
         internal bool doResample = false;
-        internal AVCodecID avCodecID;
-        internal AVFrame* pDecodedFrame;// 解码后数据
-        internal AVPacket* pPacket; // 解码前数据
+        internal AVCodecID avCodecID; // 编解码器ID
+        internal AVFrame* pDecodedFrame;// 编解码后数据
+        internal AVPacket* pPacket; // 编解码前数据
 
         internal AVCodec* pCodec; // 音视频编解码器
         internal AVCodecContext* pCodecContext; // AVCodec的上下文
@@ -50,6 +50,12 @@ namespace Xstream.Codec
             pDecodedFrame = ffmpeg.av_frame_alloc();
             pPacket = ffmpeg.av_packet_alloc();
         }
+
+        /// <summary>
+        /// Set Codec specific parameters for decoding
+        /// </summary>
+        /// <param name="codecData">Codec specific data</param>
+        internal abstract void UpdateCodecParameters(byte[] codecData);
 
         /// <summary>
         /// Sets the codec context parameters.

@@ -4,6 +4,7 @@ using SmartGlass.Nano.Consumer;
 using SmartGlass.Nano.Packets;
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Xstream.Codec
@@ -25,6 +26,8 @@ namespace Xstream.Codec
         AVPixelFormat avTargetPixelFormat;
 
         public event Action<YUVFrame> FrameDecoded;
+
+        public void PushData(H264Frame data) => encodedDataQueue.Enqueue(data);
 
         public FFmpegVideo() : base()
         {
@@ -90,6 +93,17 @@ namespace Xstream.Codec
             Console.WriteLine($"Source Pixel Format: {avSourcePixelFormat}");
             Console.WriteLine($"Target Pixel Format: {avTargetPixelFormat}");
             Console.WriteLine($"Resolution: {videoWidth}x{videoHeight}, FPS: {fps}");
+        }
+
+        /// <summary>
+        /// Update Codec context with extradata, needed for decoding
+        /// </summary>
+        /// <param name="codecData">Codec specific data (SPS/PPS) in AVCC format</param>
+        internal override void UpdateCodecParameters(byte[] codecData)
+        {
+            pCodecContext->extradata = (byte*)ffmpeg.av_mallocz((ulong)(codecData.Length + ffmpeg.AV_INPUT_BUFFER_PADDING_SIZE));
+            Marshal.Copy(codecData, 0, (IntPtr)pCodecContext->extradata, codecData.Length);
+            pCodecContext->extradata_size = codecData.Length;
         }
 
         /// <summary>
