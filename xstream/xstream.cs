@@ -55,7 +55,7 @@ namespace Xstream
             Program.Nano.VideoFrameAvailable += Decoder.ConsumeVideoData;
 
             // MainLoop
-
+            
         }
     }
 }

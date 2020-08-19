@@ -147,6 +147,10 @@ namespace Xstream
             // Get general gamestream configuration
             GamestreamConfiguration config = GamestreamConfiguration.GetStandardConfig();
             // Modify standard config, if desired
+            config.DynamicBitrateUpdateMs = 3500;
+            config.VideoMaximumWidth = 854;
+            config.VideoMaximumHeight = 480;
+            config.VideoMaximumFrameRate = 30;
 
             GamestreamSession session = client.BroadcastChannel.StartGamestreamAsync(config)
                 .GetAwaiter().GetResult();
