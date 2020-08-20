@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -116,10 +117,16 @@ namespace Xstream
             UserHash = auth.XToken.UserInformation.Userhash;
             XToken = auth.XToken.Jwt;
 
-            Discover().Wait();
+            string[] mapping = GetConfiguration("MAPPING", tokenFilePath).Split(',');
 
-            Console.Write("Input IP Address or hostname: ");
-            string addressOrHostname = Console.ReadLine();
+            string addressOrHostname = mapping[0];
+            if (addressOrHostname.Length == 0)
+            {
+                Discover().Wait();
+
+                Console.Write("Input IP Address or hostname: ");
+                addressOrHostname = Console.ReadLine();
+            }
 
             Console.WriteLine($"Connecting to {addressOrHostname}...");
             SmartGlassClient client;
@@ -165,16 +172,31 @@ namespace Xstream
              * Unknown8 AudioSyncMaxLatency
              * 
              * refer to: https://github.com/OpenXbox/xbox-smartglass-nano-python/issues/7
-             * default: GAME_STREAMING_LOW_QUALITY_SETTINGS
+             * standard: 10000000,720,60,?,0,10,40,170
              */
-            config.UrcpMaximumRate = (int)(3.000001 * 1000000);// 1后面6个0
-            config.VideoMaximumHeight = 480;
-            config.VideoMaximumFrameRate = 30;
-            // config.Unknown4
-            config.AudioBufferLengthHns = config.UrcpMaximumRate;
-            config.AudioSyncMinLatency = 40;
-            config.AudioSyncDesiredLatency = 70;
-            config.AudioSyncMaxLatency = 200;
+            //config.UrcpMaximumRate = (int)(3.000001 * 1000000);// 1后面6个0
+            //config.VideoMaximumHeight = 480;
+            //config.VideoMaximumFrameRate = 30;
+            //config.Unknown4 = 59;
+            //config.AudioBufferLengthHns = 0;
+            //config.AudioSyncMinLatency = 40;
+            //config.AudioSyncDesiredLatency = 70;
+            //config.AudioSyncMaxLatency = 200;
+            string quality = GetConfiguration("QUALITY", "GAME_STREAMING_AVAILABLE_QUALITY_SETTINGS");
+            if (mapping.Length == 2 && mapping[1].Length != 0)
+                quality = mapping[1];
+
+            config.UrcpMaximumRate = GetConfigurationInt(quality, "UrcpMaximumRate");
+            config.VideoMaximumHeight = GetConfigurationInt(quality, "VideoMaximumHeight");
+            config.VideoMaximumFrameRate = GetConfigurationInt(quality, "VideoMaximumFrameRate");
+            //config.Unknown4 = GetConfigurationInt(quality, "Unknown4");
+            config.AudioBufferLengthHns = GetConfigurationInt(quality, "AudioBufferLengthHns");
+            config.AudioSyncMinLatency = GetConfigurationInt(quality, "AudioSyncMinLatency");
+            config.AudioSyncDesiredLatency = GetConfigurationInt(quality, "AudioSyncDesiredLatency");
+            config.AudioSyncMaxLatency = GetConfigurationInt(quality, "AudioSyncMaxLatency");
+
+            if (config.AudioBufferLengthHns == 0)
+                config.AudioBufferLengthHns = config.UrcpMaximumRate;
 
             // 由于小数点向上进位，因此误差 +-1 的情况下，永远满足最小分辨率16:9
             config.VideoMaximumWidth = (int)Math.Ceiling(config.VideoMaximumHeight / 9.0 * 16);
@@ -252,9 +274,30 @@ namespace Xstream
             }
         }
 
+        public static int GetConfigurationInt(string section, string key) =>
+            int.Parse(GetConfiguration(section, key));
+
+        public static string GetConfiguration(string section, string key) =>
+            GetPrivateProfileString(section, key, "", "cfg.ini");
+
+        public static string GetPrivateProfileString(string section, string key, string def, string filePath)
+        {
+            StringBuilder sb = new StringBuilder(255);
+            GetPrivateProfileString(section, key, def, sb, sb.Capacity, filePath);
+            return sb.ToString();
+        }
+
         [DllImport("kernel32")]
         public static extern bool AllocConsole();
         [DllImport("kernel32")]
         public static extern bool FreeConsole();
+        [DllImport("kernel32")]
+        private static extern int GetPrivateProfileString(
+            string lpAppName,
+            string lpKeyName,
+            string lpDefault,
+            StringBuilder lpReturnedString,
+            int nSize,
+            string lpFileName);
     }
 }
