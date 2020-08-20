@@ -256,7 +256,7 @@ namespace Xstream
             Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Xstream());
+            Application.Run(new Xstream(GetConfigurationBool("QUALITY", "useController"), config));
 
             // finally (dirty)
             Process.GetCurrentProcess().Kill();
@@ -273,6 +273,9 @@ namespace Xstream
                     device.Name, device.HardwareId, device.Address, device.LiveId);
             }
         }
+
+        public static bool GetConfigurationBool(string section, string key) =>
+            bool.Parse(GetConfiguration(section, key));
 
         public static int GetConfigurationInt(string section, string key) =>
             int.Parse(GetConfiguration(section, key));

@@ -26,10 +26,15 @@ namespace Xstream
         readonly CancellationTokenSource _cancellationTokenSource;
         DxAudio _audioRenderer;
 
+        // DxVideo
         string _fontSourceRegular;
         string _fontSourceBold;
 
         public FFmpegDecoder Decoder;
+
+        event EventHandler<InputEventArgs> HandleInputEvent;
+        bool _useController;
+        GamestreamConfiguration _config;
 
         public Xstream()
         {
@@ -43,19 +48,29 @@ namespace Xstream
                 (int)Program.AudioFormat.SampleRate, (int)Program.AudioFormat.Channels);
 
             // DxVideo
-            this.ClientSize = new Size((int)Program.VideoFormat.Width, (int)Program.VideoFormat.Height);
             _fontSourceRegular = $"{AppDomain.CurrentDomain.BaseDirectory}Fonts/Xolonium-Regular.ttf";
             _fontSourceBold = $"{AppDomain.CurrentDomain.BaseDirectory}Fonts/Xolonium-Bold.ttf";
 
             Decoder = new FFmpegDecoder(Program.Nano, Program.AudioFormat, Program.VideoFormat);
 
-            // TODO:SdlInput
+            if (_useController)
+            {
+
+            }
 
             Program.Nano.AudioFrameAvailable += Decoder.ConsumeAudioData;
             Program.Nano.VideoFrameAvailable += Decoder.ConsumeVideoData;
 
             // MainLoop
             
+        }
+
+        public Xstream(bool useController, GamestreamConfiguration config) : this()
+        {
+            _useController = useController;
+            _config = config;
+
+            this.ClientSize = new Size(_config.VideoMaximumWidth, _config.VideoMaximumHeight);
         }
     }
 }
