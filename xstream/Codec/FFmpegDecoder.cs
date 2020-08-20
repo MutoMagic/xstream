@@ -3,7 +3,6 @@ using SmartGlass.Nano.Consumer;
 using SmartGlass.Nano.Packets;
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Xstream.Codec
 {

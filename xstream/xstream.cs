@@ -1,22 +1,8 @@
-﻿using SmartGlass;
-using SmartGlass.Common;
-using SmartGlass.Nano;
-using SmartGlass.Nano.Consumer;
-using SmartGlass.Nano.Packets;
+﻿using SmartGlass.Common;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Diagnostics;
 using System.Drawing;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using XboxWebApi.Authentication;
-using XboxWebApi.Authentication.Model;
 using Xstream.Codec;
 
 namespace Xstream
@@ -25,15 +11,13 @@ namespace Xstream
     {
         readonly CancellationTokenSource _cancellationTokenSource;
         DxAudio _audioRenderer;
-
-        // DxVideo
-        string _fontSourceRegular;
-        string _fontSourceBold;
+        DxVideo _videoRenderer;
 
         public FFmpegDecoder Decoder;
 
         event EventHandler<InputEventArgs> HandleInputEvent;
         bool _useController;
+
         GamestreamConfiguration _config;
 
         public Xstream()
@@ -46,10 +30,8 @@ namespace Xstream
 
             _audioRenderer = new DxAudio(
                 (int)Program.AudioFormat.SampleRate, (int)Program.AudioFormat.Channels);
-
-            // DxVideo
-            _fontSourceRegular = $"{AppDomain.CurrentDomain.BaseDirectory}Fonts/Xolonium-Regular.ttf";
-            _fontSourceBold = $"{AppDomain.CurrentDomain.BaseDirectory}Fonts/Xolonium-Bold.ttf";
+            _videoRenderer = new DxVideo(
+                (int)Program.VideoFormat.Width, (int)Program.VideoFormat.Height, this);
 
             Decoder = new FFmpegDecoder(Program.Nano, Program.AudioFormat, Program.VideoFormat);
 
