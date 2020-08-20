@@ -278,7 +278,7 @@ namespace Xstream
             int.Parse(GetConfiguration(section, key));
 
         public static string GetConfiguration(string section, string key) =>
-            GetPrivateProfileString(section, key, "", "cfg.ini");
+            GetPrivateProfileString(section, key, "", "./cfg.ini");
 
         public static string GetPrivateProfileString(string section, string key, string def, string filePath)
         {
