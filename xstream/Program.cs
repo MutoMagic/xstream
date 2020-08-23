@@ -289,7 +289,7 @@ namespace Xstream
         [DllImport("kernel32")]
         public static extern bool FreeConsole();
         [DllImport("kernel32")]
-        private static extern int GetPrivateProfileString(
+        static extern int GetPrivateProfileString(
             string lpAppName,
             string lpKeyName,
             string lpDefault,

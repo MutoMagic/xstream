@@ -3,7 +3,7 @@ using System;
 
 namespace Xstream
 {
-    enum InputEventType
+    public enum InputEventType
     {
         ControllerAdded,
         ControllerRemoved,
@@ -12,7 +12,7 @@ namespace Xstream
         AxisMoved
     }
 
-    class InputEventArgs : EventArgs
+    public class InputEventArgs : EventArgs
     {
         public InputEventType EventType { get; internal set; }
         public int ControllerIndex { get; internal set; }

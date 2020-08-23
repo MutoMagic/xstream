@@ -12,10 +12,11 @@ namespace Xstream
         readonly CancellationTokenSource _cancellationTokenSource;
         DxAudio _audioRenderer;
         DxVideo _videoRenderer;
+        public DxInput Input;
 
         public FFmpegDecoder Decoder;
 
-        event EventHandler<InputEventArgs> HandleInputEvent;
+        public event EventHandler<InputEventArgs> HandleInputEvent;
         bool _useController;
 
         GamestreamConfiguration _config;
@@ -37,14 +38,17 @@ namespace Xstream
 
             if (_useController)
             {
-
+                Input = new DxInput($"{AppDomain.CurrentDomain.BaseDirectory}/gamecontrollerdb.txt");
+                HandleInputEvent += Input.HandleInput;
             }
 
             Program.Nano.AudioFrameAvailable += Decoder.ConsumeAudioData;
             Program.Nano.VideoFrameAvailable += Decoder.ConsumeVideoData;
 
             // MainLoop
-            
+
+            if (_useController && !Input.Initialize())
+                throw new InvalidOperationException("Failed to init DirectX Input");
         }
 
         public Xstream(bool useController, GamestreamConfiguration config) : this()
