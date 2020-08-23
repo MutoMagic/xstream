@@ -28,6 +28,12 @@ namespace Xstream
 
             this.ClientSize = new Size(_config.VideoMaximumWidth, _config.VideoMaximumHeight);
 
+            this.KeyPreview = true;
+            this.KeyPress += new KeyPressEventHandler((sender, e) =>
+            {
+                MessageBox.Show("Form.KeyPress: '" + e.KeyChar.ToString() + "' consumed.");
+            });
+
             InitializeComponent();
 
             // DirectX / FFMPEG setup
