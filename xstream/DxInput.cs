@@ -59,7 +59,27 @@ namespace Xstream
             // Instantiate the joystick
             var joystick = new Joystick(directInput, joystickGuid);
 
-            Console.WriteLine("Found Joystick/Gamepad with GUID: {0}", joystickGuid);
+            Debug.WriteLine("Found Joystick/Gamepad with GUID: {0}", joystickGuid);
+
+            // Query all suported ForceFeedback effects
+            var allEffects = joystick.GetEffects();
+            foreach (var effectInfo in allEffects)
+                Debug.WriteLine("Effect available {0}", effectInfo.Name);
+
+            // Set BufferSize in order to use buffered data.
+            joystick.Properties.BufferSize = 128;
+
+            // Acquire the joystick
+            joystick.Acquire();
+
+            // Poll events from joystick
+            while (true)
+            {
+                joystick.Poll();
+                var datas = joystick.GetBufferedData();
+                foreach (var state in datas)
+                    Debug.WriteLine(state);
+            }
 
             //int ret = SDL.SDL_Init(SDL.SDL_INIT_GAMECONTROLLER);
             //if (ret < 0)
