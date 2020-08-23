@@ -21,8 +21,13 @@ namespace Xstream
 
         GamestreamConfiguration _config;
 
-        public Xstream()
+        public Xstream(bool useController, GamestreamConfiguration config)
         {
+            _useController = useController;
+            _config = config;
+
+            this.ClientSize = new Size(_config.VideoMaximumWidth, _config.VideoMaximumHeight);
+
             InitializeComponent();
 
             // DirectX / FFMPEG setup
@@ -40,6 +45,8 @@ namespace Xstream
             {
                 Input = new DxInput($"{AppDomain.CurrentDomain.BaseDirectory}/gamecontrollerdb.txt");
                 HandleInputEvent += Input.HandleInput;
+
+                Input.Initialize();// debug
             }
 
             Program.Nano.AudioFrameAvailable += Decoder.ConsumeAudioData;
@@ -49,14 +56,6 @@ namespace Xstream
 
             if (_useController && !Input.Initialize())
                 throw new InvalidOperationException("Failed to init DirectX Input");
-        }
-
-        public Xstream(bool useController, GamestreamConfiguration config) : this()
-        {
-            _useController = useController;
-            _config = config;
-
-            this.ClientSize = new Size(_config.VideoMaximumWidth, _config.VideoMaximumHeight);
         }
     }
 }
