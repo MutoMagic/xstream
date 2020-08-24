@@ -1,4 +1,4 @@
-﻿using SharpDX.DirectInput;
+﻿//using SharpDX.DirectInput;
 using SharpDX.XInput;
 using SmartGlass.Nano;
 using SmartGlass.Nano.Packets;
@@ -35,6 +35,7 @@ namespace Xstream
 
         public bool Initialize()
         {
+            /*
             // Initialize DirectInput
             var directInput = new DirectInput();
 
@@ -82,6 +83,7 @@ namespace Xstream
                 foreach (var state in datas)
                     Debug.WriteLine(state);
             }
+            */
 
             //int ret = SDL.SDL_Init(SDL.SDL_INIT_GAMECONTROLLER);
             //if (ret < 0)
