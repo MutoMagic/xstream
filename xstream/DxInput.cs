@@ -1,5 +1,6 @@
-﻿//using SharpDX.DirectInput;
-using SharpDX.XInput;
+﻿using SharpDX;
+using SharpDX.DirectInput;
+//using SharpDX.XInput;
 using SmartGlass.Nano;
 using SmartGlass.Nano.Packets;
 using System;
@@ -35,7 +36,7 @@ namespace Xstream
 
         public bool Initialize()
         {
-            /*
+            ///*
             // Initialize DirectInput
             var directInput = new DirectInput();
 
@@ -78,12 +79,21 @@ namespace Xstream
             // Poll events from joystick
             while (true)
             {
-                joystick.Poll();
-                var datas = joystick.GetBufferedData();
-                foreach (var state in datas)
-                    Debug.WriteLine(state);
+                try
+                {
+                    joystick.Poll();
+                    var datas = joystick.GetBufferedData();
+                    foreach (var state in datas)
+                        Debug.WriteLine(state);
+                }
+                catch (SharpDXException e)
+                {
+                    Debug.WriteLine(e.ToString());
+                    Debug.WriteLine(e.ResultCode.ToString());
+                    Debug.WriteLine(e.Descriptor.ToString());
+                }
             }
-            */
+            //*/
 
             //int ret = SDL.SDL_Init(SDL.SDL_INIT_GAMECONTROLLER);
             //if (ret < 0)
@@ -118,6 +128,7 @@ namespace Xstream
 
         public int OpenController(int joystickIndex)
         {
+            /*
             // Initialize XInput
             var controllers = new[] {
                 new Controller(UserIndex.One), 
@@ -161,6 +172,7 @@ namespace Xstream
                 Thread.Sleep(10);
                 previousState = state;
             }
+            */
 
             if (!Initialized)
             {
