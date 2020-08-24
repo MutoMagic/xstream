@@ -1,8 +1,10 @@
 ﻿using SharpDX.DirectInput;
+using SharpDX.XInput;
 using SmartGlass.Nano;
 using SmartGlass.Nano.Packets;
 using System;
 using System.Diagnostics;
+using System.Threading;
 
 namespace Xstream
 {
@@ -114,6 +116,50 @@ namespace Xstream
 
         public int OpenController(int joystickIndex)
         {
+            // Initialize XInput
+            var controllers = new[] {
+                new Controller(UserIndex.One), 
+                new Controller(UserIndex.Two), 
+                new Controller(UserIndex.Three), 
+                new Controller(UserIndex.Four) };
+
+            // Get 1st controller available
+            Controller controller = null;
+            foreach (var selectControler in controllers)
+            {
+                if (selectControler.IsConnected)
+                {
+                    controller = selectControler;
+                    break;
+                }
+            }
+
+            if (controller == null)
+            {
+                Console.WriteLine("No XInput controller installed");
+                return 0;
+            }
+
+            Console.WriteLine("Found a XInput controller available");
+            Console.WriteLine("Press buttons on the controller to display events or escape key to exit... ");
+
+            // Poll events from joystick
+            var previousState = controller.GetState();
+
+            while (controller.IsConnected)
+            {
+                if (Console.KeyAvailable && Console.ReadKey(true).Key == ConsoleKey.Escape)
+                {
+                    Console.WriteLine("Escape");
+                    return 0;
+                }
+                var state = controller.GetState();
+                if (previousState.PacketNumber != state.PacketNumber)
+                    Console.WriteLine(state.Gamepad);
+                Thread.Sleep(10);
+                previousState = state;
+            }
+
             if (!Initialized)
             {
                 Debug.WriteLine("SDL Input not initialized yet...");

@@ -52,7 +52,7 @@ namespace Xstream
                 Input = new DxInput($"{AppDomain.CurrentDomain.BaseDirectory}/gamecontrollerdb.txt");
                 HandleInputEvent += Input.HandleInput;
 
-                Input.Initialize();// debug
+                Input.OpenController(0);
             }
 
             Program.Nano.AudioFrameAvailable += Decoder.ConsumeAudioData;
