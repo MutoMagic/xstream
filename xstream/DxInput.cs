@@ -1,4 +1,5 @@
-﻿using SharpDX.DirectInput;
+﻿using SharpDX;
+using SharpDX.DirectInput;
 using SmartGlass.Nano;
 using SmartGlass.Nano.Packets;
 using System;
@@ -226,11 +227,21 @@ namespace Xstream
         {
             if (_directInput.IsDeviceAttached(_controller.Information.InstanceGuid))
             {
+                // TODO
+            }
+
+            try
+            {
                 // Poll events from joystick
                 _controller.Poll();
                 var datas = _controller.GetBufferedData();
                 foreach (var state in datas)
                     Debug.WriteLine(state);
+            }
+            catch (SharpDXException e)
+            {
+                if (e.ResultCode.Code == ResultCode.InputLost.Code)
+                    _controller.Acquire();
             }
         }
 

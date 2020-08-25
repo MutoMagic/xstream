@@ -74,10 +74,6 @@ namespace Xstream
                         //await Program.Nano.Input.SendInputFrame(
                         //    DateTime.UtcNow, Input.Buttons, Input.Analog, Input.Extension);
                     }
-                    catch (SharpDXException e)
-                    {
-                        Debug.WriteLine(e.ToString());
-                    }
                     catch
                     {
                         Thread.Sleep(millisecondsTimeout: 5);
