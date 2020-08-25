@@ -56,7 +56,6 @@ namespace Xstream
 
         DirectInput _directInput;
         SortedList _joystickGuidList = new SortedList();// Dictionary<Guid, string[]>
-        int _joystickIndex;
         Joystick _controller = null;
 
         Dictionary<string, string> _controllerMapping = new Dictionary<string, string>();
@@ -82,6 +81,8 @@ namespace Xstream
 
         private bool Initialize()
         {
+            _joystickGuidList.Clear();
+
             Dictionary<string, string[]> controllerMappings = new Dictionary<string, string[]>();
 
             if (ControllerMappingFilepath != null)
@@ -162,7 +163,6 @@ namespace Xstream
                 return false;
             }
 
-            _joystickGuidList.Clear();
             return Initialize();
         }
 
@@ -227,8 +227,8 @@ namespace Xstream
             // Acquire the joystick
             joystick.Acquire();
 
-            _joystickIndex = joystickIndex;
             _controller = joystick;
+
             Debug.WriteLine("Opened Controller {0} {1}", joystickIndex, _controller.Information.ProductName);
 
             _controllerMapping.Clear();
@@ -243,13 +243,13 @@ namespace Xstream
             return 0;
         }
 
-        public void GetData()
+        public JoystickUpdate[] GetData()
         {
-            if (_controller != null 
-                && !_directInput.IsDeviceAttached(_controller.Information.InstanceGuid))
+            if (_controller == null
+                || !_directInput.IsDeviceAttached(_controller.Information.InstanceGuid))
             {
-                ReInitialize();
-                return;
+                if (!ReInitialize())
+                    return null;
             }
 
             try
@@ -259,6 +259,7 @@ namespace Xstream
                 var datas = _controller.GetBufferedData();
                 foreach (var state in datas)
                     Debug.WriteLine(state);
+                return datas;
             }
             catch (SharpDXException e)
             {
@@ -268,6 +269,8 @@ namespace Xstream
 
                 Debug.WriteLine(e.ToString());
             }
+
+            return null;
         }
 
         public void CloseController()
