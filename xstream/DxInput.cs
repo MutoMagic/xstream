@@ -245,8 +245,8 @@ namespace Xstream
 
         public void GetData()
         {
-            if (_controller == null 
-                || !_directInput.IsDeviceAttached(_controller.Information.InstanceGuid))
+            if (_controller != null 
+                && !_directInput.IsDeviceAttached(_controller.Information.InstanceGuid))
             {
                 ReInitialize();
                 return;
