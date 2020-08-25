@@ -220,13 +220,13 @@ namespace Xstream
             }
 
             // Poll events from joystick
-            //while (true)
-            //{
-            //    joystick.Poll();
-            //    var datas = joystick.GetBufferedData();
-            //    foreach (var state in datas)
-            //        Debug.WriteLine(state);
-            //}
+            while (true)
+            {
+                joystick.Poll();
+                var datas = joystick.GetBufferedData();
+                foreach (var state in datas)
+                    Debug.WriteLine(state);
+            }
 
             return 0;
         }
