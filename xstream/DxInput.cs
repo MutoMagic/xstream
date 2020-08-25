@@ -56,6 +56,7 @@ namespace Xstream
 
         DirectInput _directInput;
         SortedList _joystickGuidList = new SortedList();// Dictionary<Guid, string[]>
+        int _joystickIndex;
         Joystick _controller = null;
 
         Dictionary<string, string> _controllerMapping = new Dictionary<string, string>();
@@ -210,6 +211,7 @@ namespace Xstream
             // Acquire the joystick
             joystick.Acquire();
 
+            _joystickIndex = joystickIndex;
             _controller = joystick;
             Debug.WriteLine("Opened Controller {0} {1}", joystickIndex, _controller.Information.ProductName);
 
@@ -240,7 +242,7 @@ namespace Xstream
                     _controller.Acquire();
 
                 if (e.ResultCode.Code == ResultCode.NotAttached.Code)
-                    ;
+                    OpenController(_joystickIndex);
             }
         }
 
