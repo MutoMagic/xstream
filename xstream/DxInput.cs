@@ -224,11 +224,14 @@ namespace Xstream
 
         public void GetData()
         {
-            // Poll events from joystick
-            _controller.Poll();
-            var datas = _controller.GetBufferedData();
-            foreach (var state in datas)
-                Debug.WriteLine(state);
+            if (_directInput.IsDeviceAttached(_controller.Properties.ClassGuid))
+            {
+                // Poll events from joystick
+                _controller.Poll();
+                var datas = _controller.GetBufferedData();
+                foreach (var state in datas)
+                    Debug.WriteLine(state);
+            }
         }
 
         public void CloseController()
@@ -240,8 +243,13 @@ namespace Xstream
             }
             Debug.WriteLine("Removing Controller...");
             if (!_controller.IsDisposed)
+            {
+                _controller.Unacquire();
                 _controller.Dispose();
-            _controller = null;// .NET GC
+            }
+
+            // Always GC
+            _controller = null;
         }
 
         private void HandleControllerButtonChange(NanoGamepadButton button, bool pressed)
