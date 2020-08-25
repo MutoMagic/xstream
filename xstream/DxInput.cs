@@ -82,8 +82,11 @@ namespace Xstream
             {
                 string[] lines = File.ReadAllLines(ControllerMappingFilepath);
 
-                for (int i = 1; i < lines.Length; i++)
+                for (int i = 0; i < lines.Length; i++)
                 {
+                    if (lines[i].StartsWith('#') || lines[i].StartsWith(';'))
+                        continue;
+
                     string[] columns = lines[i].Split(',');
                     controllerMappings.Add($"{columns[0]}[{columns[1]}]", columns);
                 }
