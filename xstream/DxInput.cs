@@ -225,7 +225,7 @@ namespace Xstream
             joystick.Properties.BufferSize = 128;
 
             // Acquire the joystick
-            joystick.Acquire();
+            //joystick.Acquire();
 
             _controller = joystick;
 
@@ -280,14 +280,15 @@ namespace Xstream
                 Debug.WriteLine("Controller is not initialized, cannot remove");
                 return;
             }
+
             Debug.WriteLine("Removing Controller...");
+
             if (!_controller.IsDisposed)
             {
                 _controller.Unacquire();
                 _controller.Dispose();
             }
 
-            // Always GC
             _controller = null;
         }
 
