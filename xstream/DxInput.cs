@@ -77,7 +77,11 @@ namespace Xstream
         public bool Initialize(Form f)
         {
             _hwnd = f.Handle;
+            return Initialize();
+        }
 
+        private bool Initialize()
+        {
             Dictionary<string, string[]> controllerMappings = new Dictionary<string, string[]>();
 
             if (ControllerMappingFilepath != null)
@@ -150,6 +154,18 @@ namespace Xstream
             return true;
         }
 
+        public bool ReInitialize()
+        {
+            if (!Initialized)
+            {
+                Debug.WriteLine("DirectInput needs to be initialized once");
+                return false;
+            }
+
+            _joystickGuidList.Clear();
+            return Initialize();
+        }
+
         public int OpenController(int joystickIndex)
         {
             if (!Initialized)
@@ -215,6 +231,8 @@ namespace Xstream
             _controller = joystick;
             Debug.WriteLine("Opened Controller {0} {1}", joystickIndex, _controller.Information.ProductName);
 
+            _controllerMapping.Clear();
+
             for (int i = 2; i < controllerMapping.Length; i++)
             {
                 string[] mapping = controllerMapping[i].Split(':');
@@ -246,7 +264,7 @@ namespace Xstream
 
                 if (e.ResultCode.Code == ResultCode.NotAttached.Code)
                 {
-                    OpenController(_joystickIndex);
+                    ReInitialize();
                     return;
                 }
 
