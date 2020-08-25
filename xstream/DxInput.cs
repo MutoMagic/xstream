@@ -85,7 +85,7 @@ namespace Xstream
                 for (int i = 1; i < lines.Length; i++)
                 {
                     string[] columns = lines[i].Split(',');
-                    controllerMappings.Add(columns[0], columns);
+                    controllerMappings.Add($"{columns[0]}[{columns[1]}]", columns);
                 }
             }
 
@@ -125,11 +125,13 @@ namespace Xstream
             for (int i = 0; i < numJoysticks; i++)
             {
                 joystickGuid = (Guid)_joystickGuidList.GetKey(i);
-                string guid = joystickGuid.ToString("N");
+                var joystick = new Joystick(_directInput, joystickGuid);
+                string key = $"{joystick.Properties.ProductId}[{joystick.Properties.ProductName}]";
+                joystick.Dispose();
 
-                if (controllerMappings.ContainsKey(guid))
+                if (controllerMappings.ContainsKey(key))
                 {
-                    _joystickGuidList.SetByIndex(i, controllerMappings[guid]);
+                    _joystickGuidList.SetByIndex(i, controllerMappings[key]);
 
                     Debug.WriteLine("Found a gamecontroller (Index: {0})", i);
                     OpenController(i);
