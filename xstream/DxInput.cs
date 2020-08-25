@@ -73,35 +73,9 @@ namespace Xstream
             Extension.Unknown1 = 1;
         }
 
-        public bool Initialize(Form f)
-        {
-            _hwnd = f.Handle;
-            return Initialize();
-        }
-
         private bool Initialize()
         {
             _joystickGuidList.Clear();
-
-            Dictionary<string, string[]> controllerMappings = new Dictionary<string, string[]>();
-
-            if (ControllerMappingFilepath != null)
-            {
-                string[] lines = File.ReadAllLines(ControllerMappingFilepath);
-
-                for (int i = 0; i < lines.Length; i++)
-                {
-                    if (lines[i].StartsWith('#') || lines[i].StartsWith(';'))
-                        continue;// 仅处理整行注释，行内注释一律当作实际值处理。
-
-                    string[] columns = lines[i].Split(',');
-                    if (columns.Length < 2)
-                        continue;// 前两个必须是ProductGuid及ProductName，顺序都不能错。
-
-                    // 别忘了中括号，因为ProductGuid会重。
-                    controllerMappings.Add($"{columns[0]}[{columns[1]}]", columns);
-                }
-            }
 
             // Initialize DirectInput
             _directInput = new DirectInput();
@@ -132,6 +106,26 @@ namespace Xstream
                 return false;
             }
 
+            Dictionary<string, string[]> controllerMappings = new Dictionary<string, string[]>();
+
+            if (ControllerMappingFilepath != null)
+            {
+                string[] lines = File.ReadAllLines(ControllerMappingFilepath);
+
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    if (lines[i].StartsWith('#') || lines[i].StartsWith(';'))
+                        continue;// 仅处理整行注释，行内注释一律当作实际值处理。
+
+                    string[] columns = lines[i].Split(',');
+                    if (columns.Length < 2)
+                        continue;// 前两个必须是ProductGuid及ProductName，顺序都不能错。
+
+                    // 别忘了中括号，因为ProductGuid会重。
+                    controllerMappings.Add($"{columns[0]}[{columns[1]}]", columns);
+                }
+            }
+
             Initialized = true;
 
             int numJoysticks = _joystickGuidList.Count;
@@ -153,17 +147,6 @@ namespace Xstream
             }
 
             return true;
-        }
-
-        public bool ReInitialize()
-        {
-            if (!Initialized)
-            {
-                Debug.WriteLine("DirectInput needs to be initialized once");
-                return false;
-            }
-
-            return Initialize();
         }
 
         public int OpenController(int joystickIndex)
@@ -243,36 +226,6 @@ namespace Xstream
             return 0;
         }
 
-        public JoystickUpdate[] GetData()
-        {
-            if (_controller == null
-                || !_directInput.IsDeviceAttached(_controller.Information.InstanceGuid))
-            {
-                if (!ReInitialize())
-                    return null;
-            }
-
-            try
-            {
-                // Poll events from joystick
-                _controller.Poll();
-                var datas = _controller.GetBufferedData();
-                foreach (var state in datas)
-                    Debug.WriteLine(state);
-                return datas;
-            }
-            catch (SharpDXException e)
-            {
-                if (e.ResultCode.Code == ResultCode.InputLost.Code
-                    || e.ResultCode.Code == ResultCode.NotAcquired.Code)
-                    _controller.Acquire();
-
-                Debug.WriteLine(e.ToString());
-            }
-
-            return null;
-        }
-
         public void CloseController()
         {
             if (_controller == null)
@@ -324,6 +277,53 @@ namespace Xstream
                 default:
                     throw new NotSupportedException($"Invalid InputEventType: {e.EventType}");
             }
+        }
+
+        public JoystickUpdate[] GetData()
+        {
+            if (_controller == null
+                || !_directInput.IsDeviceAttached(_controller.Information.InstanceGuid))
+            {
+                if (!ReInitialize())
+                    return null;
+            }
+
+            try
+            {
+                // Poll events from joystick
+                _controller.Poll();
+                var datas = _controller.GetBufferedData();
+                foreach (var state in datas)
+                    Debug.WriteLine(state);
+                return datas;
+            }
+            catch (SharpDXException e)
+            {
+                if (e.ResultCode.Code == ResultCode.InputLost.Code
+                    || e.ResultCode.Code == ResultCode.NotAcquired.Code)
+                    _controller.Acquire();
+
+                Debug.WriteLine(e.ToString());
+            }
+
+            return null;
+        }
+
+        public bool Initialize(Form f)
+        {
+            _hwnd = f.Handle;
+            return Initialize();
+        }
+
+        public bool ReInitialize()
+        {
+            if (!Initialized)
+            {
+                Debug.WriteLine("DirectInput needs to be initialized once");
+                return false;
+            }
+
+            return Initialize();
         }
     }
 }
