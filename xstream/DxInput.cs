@@ -245,6 +245,12 @@ namespace Xstream
 
         public void GetData()
         {
+            if (_directInput.IsDeviceAttached(_controller.Information.InstanceGuid))
+            {
+                ReInitialize();
+                return;
+            }
+
             try
             {
                 // Poll events from joystick
@@ -257,16 +263,7 @@ namespace Xstream
             {
                 if (e.ResultCode.Code == ResultCode.InputLost.Code
                     || e.ResultCode.Code == ResultCode.NotAcquired.Code)
-                {
                     _controller.Acquire();
-                    return;
-                }
-
-                if (e.ResultCode.Code == ResultCode.NotAttached.Code)
-                {
-                    ReInitialize();
-                    return;
-                }
 
                 Debug.WriteLine(e.ToString());
             }
