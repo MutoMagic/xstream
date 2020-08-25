@@ -56,10 +56,14 @@ namespace Xstream
             Program.Nano.AudioFrameAvailable += Decoder.ConsumeAudioData;
             Program.Nano.VideoFrameAvailable += Decoder.ConsumeVideoData;
 
-            // MainLoop
+            Load += new EventHandler(MainLoop);
+        }
 
+        public void MainLoop(object sender, EventArgs e)
+        {
             if (_useController && !Input.Initialize(this))
                 throw new InvalidOperationException("Failed to init DirectX Input");
+
         }
     }
 }
