@@ -219,16 +219,16 @@ namespace Xstream
                     _controllerMapping.Add(mapping[0], mapping[1]);
             }
 
-            // Poll events from joystick
-            while (true)
-            {
-                joystick.Poll();
-                var datas = joystick.GetBufferedData();
-                foreach (var state in datas)
-                    Debug.WriteLine(state);
-            }
-
             return 0;
+        }
+
+        public void GetData()
+        {
+            // Poll events from joystick
+            _controller.Poll();
+            var datas = _controller.GetBufferedData();
+            foreach (var state in datas)
+                Debug.WriteLine(state);
         }
 
         public void CloseController()

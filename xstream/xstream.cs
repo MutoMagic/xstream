@@ -1,7 +1,9 @@
 ﻿using SmartGlass.Common;
 using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using Xstream.Codec;
 
@@ -59,11 +61,36 @@ namespace Xstream
             Shown += MainLoop;
         }
 
+        Task StartInputFrameSendingTask()
+        {
+            return Task.Run(async () =>
+            {
+                while (!_cancellationTokenSource.IsCancellationRequested)
+                {
+                    Input.GetData();
+
+                    //try
+                    //{
+                    //    await Program.Nano.Input.SendInputFrame(
+                    //        DateTime.UtcNow, Input.Buttons, Input.Analog, Input.Extension);
+                    //}
+                    //catch
+                    //{
+                    //    Thread.Sleep(millisecondsTimeout: 5);
+                    //}
+                }
+            }, _cancellationTokenSource.Token);
+        }
+
         public void MainLoop(object sender, EventArgs e)
         {
             if (_useController && !Input.Initialize(this))
                 throw new InvalidOperationException("Failed to init DirectX Input");
 
+            if (_useController)
+            {
+                StartInputFrameSendingTask();
+            }
         }
     }
 }
