@@ -1,4 +1,5 @@
-﻿using SmartGlass.Common;
+﻿using SharpDX;
+using SmartGlass.Common;
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -67,17 +68,20 @@ namespace Xstream
             {
                 while (!_cancellationTokenSource.IsCancellationRequested)
                 {
-                    Input.GetData();
-
-                    //try
-                    //{
-                    //    await Program.Nano.Input.SendInputFrame(
-                    //        DateTime.UtcNow, Input.Buttons, Input.Analog, Input.Extension);
-                    //}
-                    //catch
-                    //{
-                    //    Thread.Sleep(millisecondsTimeout: 5);
-                    //}
+                    try
+                    {
+                        Input.GetData();
+                        //await Program.Nano.Input.SendInputFrame(
+                        //    DateTime.UtcNow, Input.Buttons, Input.Analog, Input.Extension);
+                    }
+                    catch (SharpDXException e)
+                    {
+                        Debug.WriteLine(e.ToString());
+                    }
+                    catch
+                    {
+                        Thread.Sleep(millisecondsTimeout: 5);
+                    }
                 }
             }, _cancellationTokenSource.Token);
         }
