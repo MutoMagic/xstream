@@ -126,7 +126,7 @@ namespace Xstream
             {
                 joystickGuid = (Guid)_joystickGuidList.GetKey(i);
                 var joystick = new Joystick(_directInput, joystickGuid);
-                string key = $"{joystick.Properties.ProductId}[{joystick.Properties.ProductName}]";
+                string key = $"{joystick.Information.ProductGuid}[{joystick.Information.ProductName}]";
                 joystick.Dispose();
 
                 if (controllerMappings.ContainsKey(key))
