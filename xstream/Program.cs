@@ -111,7 +111,7 @@ namespace Xstream
             UserHash = auth.XToken.UserInformation.Userhash;
             XToken = auth.XToken.Jwt;
 
-            string[] mapping = GetConfiguration("MAPPING", tokenFilePath).Split(',');
+            string[] mapping = GetMappingString(tokenFilePath).Split(',');
 
             string addressOrHostname = mapping[0];
             if (addressOrHostname.Length == 0)
@@ -176,7 +176,7 @@ namespace Xstream
             //config.AudioSyncMinLatency = 40;
             //config.AudioSyncDesiredLatency = 70;
             //config.AudioSyncMaxLatency = 200;
-            string quality = GetConfiguration("QUALITY", "GAME_STREAMING_AVAILABLE_QUALITY_SETTINGS");
+            string quality = GetSettingString("GAME_STREAMING_AVAILABLE_QUALITY_SETTINGS");
             if (mapping.Length == 2 && mapping[1].Length != 0)
                 quality = mapping[1];
 
@@ -250,7 +250,7 @@ namespace Xstream
             Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Xstream(GetConfigurationBool("QUALITY", "useController"), config));
+            Application.Run(new Xstream(GetSettingBool("useController"), config));
 
             // finally (dirty)
             Process.GetCurrentProcess().Kill();
@@ -268,13 +268,21 @@ namespace Xstream
             }
         }
 
+        public static bool GetSettingBool(string key) => GetConfigurationBool("SETTINGS", key);
+
+        public static int GetSettingInt(string key) => GetConfigurationInt("SETTINGS", key);
+
+        public static string GetSettingString(string key) => GetConfigurationString("SETTINGS", key);
+
+        public static string GetMappingString(string key) => GetConfigurationString("MAPPING", key);
+
         public static bool GetConfigurationBool(string section, string key) =>
-            bool.Parse(GetConfiguration(section, key));
+            bool.Parse(GetConfigurationString(section, key));
 
         public static int GetConfigurationInt(string section, string key) =>
-            int.Parse(GetConfiguration(section, key));
+            int.Parse(GetConfigurationString(section, key));
 
-        public static string GetConfiguration(string section, string key) =>
+        public static string GetConfigurationString(string section, string key) =>
             GetPrivateProfileString(section, key, "", "./cfg.ini");
 
         public static string GetPrivateProfileString(string section, string key, string def, string filePath)

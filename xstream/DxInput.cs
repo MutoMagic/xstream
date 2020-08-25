@@ -5,6 +5,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Windows.Forms;
 
 namespace Xstream
@@ -19,7 +20,7 @@ namespace Xstream
         public InputAnalogue Analog { get; private set; }
         public InputExtension Extension { get; private set; }
 
-        IntPtr _hwnd;
+        IntPtr _hwnd;// 顶级窗口句柄
 
         public static Dictionary<string, NanoGamepadButton> ButtonMap =
                 new Dictionary<string, NanoGamepadButton>()
@@ -72,6 +73,15 @@ namespace Xstream
         public bool Initialize(Form f)
         {
             _hwnd = f.Handle;
+
+            if (ControllerMappingFilepath != null)
+            {
+                string[] lines = File.ReadAllLines(ControllerMappingFilepath);
+
+                string[][] controllerMappings = new string[lines.Length][];
+                for (int i = 0; i < lines.Length; i++)
+                    controllerMappings[i] = lines[i].Split(",");
+            }
 
             // Initialize DirectInput
             _directInput = new DirectInput();
@@ -145,14 +155,33 @@ namespace Xstream
 
             // Instantiate the joystick
             var joystick = new Joystick(_directInput, joystickGuid);
-            joystick.SetCooperativeLevel(_hwnd, CooperativeLevel.NonExclusive | CooperativeLevel.Foreground);
 
             Debug.WriteLine("Found Joystick/Gamepad with GUID: {0}", joystickGuid);
 
+            /*
+             * BUG?：XBOX Controller 只能 Foreground，即便将其设为 Background 也是无效的。
+             *       详见“SharpDX.DirectInput监听不到手柄按键”https://bbs.csdn.net/topics/392460595
+             *       为了便于多开，这里统一设定为Foreground。
+             * 
+             * Exclusive    该应用程序需要互斥访问。
+             *              如果授予独占访问权限，则在获取设备时，设备的其他任何实例都无法获得对该设备的独占访问权限。
+             *              但是，即使另一个应用程序获得了独占访问，也始终允许对设备进行非独占访问。
+             *              在独占模式下获取鼠标或键盘设备的应用程序在收到WM_ENTERSIZEMOVE和WM_ENTERMENULOOP消息时应始终取消获取设备。
+             *              否则，用户将无法操作菜单或移动窗口并调整窗口大小。
+             * NonExclusive 应用程序需要非独占访问。对设备的访问不会干扰正在访问同一设备的其他应用程序。
+             * Foreground   该应用程序需要前台访问。
+             *              如果授予了前台访问权限，则当关联的窗口移至后台时，将自动取消获取设备。
+             * Background   该应用程序需要后台访问。
+             *              如果授予了后台访问权限，则即使关联的窗口不是活动窗口，也可以随时获取设备。
+             * NoWinKey     禁用Windows徽标键。设置此标志可确保用户不会意外退出应用程序。
+             *              但是请注意，当显示默认操作映射用户界面（UI）时，DISCL_NOWINKEY无效，并且只要存在该UI，Windows徽标键就可以正常运行。
+             */
+            joystick.SetCooperativeLevel(_hwnd, CooperativeLevel.NonExclusive | CooperativeLevel.Foreground);
+
             // Query all suported ForceFeedback effects
-            var allEffects = joystick.GetEffects();
-            foreach (var effectInfo in allEffects)
-                Debug.WriteLine("Effect available {0}", effectInfo.Name);
+            //var allEffects = joystick.GetEffects();
+            //foreach (var effectInfo in allEffects)
+            //    Debug.WriteLine("Effect available {0}", effectInfo.Name);
 
             // Set BufferSize in order to use buffered data.
             joystick.Properties.BufferSize = 128;

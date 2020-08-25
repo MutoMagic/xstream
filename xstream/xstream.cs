@@ -28,7 +28,7 @@ namespace Xstream
 
             ClientSize = new Size(_config.VideoMaximumWidth, _config.VideoMaximumHeight);
 
-            KeyPreview = true;
+            KeyPreview = Program.GetSettingBool("useController.KeyPreview");
             KeyPress += new KeyPressEventHandler((sender, e) =>
             {
                 MessageBox.Show("Form.KeyPress: '" + e.KeyChar.ToString() + "' consumed.");
