@@ -80,7 +80,7 @@ namespace Xstream
 
                 string[][] controllerMappings = new string[lines.Length][];
                 for (int i = 0; i < lines.Length; i++)
-                    controllerMappings[i] = lines[i].Split(",");
+                    controllerMappings[i] = lines[i].Split(',');
             }
 
             // Initialize DirectInput
@@ -93,7 +93,7 @@ namespace Xstream
                 in _directInput.GetDevices(DeviceType.Gamepad, DeviceEnumerationFlags.AllDevices))
             {
                 joystickGuid = deviceInstance.InstanceGuid;
-                _joystickGuidList.Add(joystickGuid, false);
+                _joystickGuidList.Add(joystickGuid, null);
             }
 
             // If Gamepad not found, look for a Joystick
@@ -102,7 +102,7 @@ namespace Xstream
                     in _directInput.GetDevices(DeviceType.Joystick, DeviceEnumerationFlags.AllDevices))
                 {
                     joystickGuid = deviceInstance.InstanceGuid;
-                    _joystickGuidList.Add(joystickGuid, false);
+                    _joystickGuidList.Add(joystickGuid, null);
                 }
 
             // If Joystick not found, throws an error
@@ -138,7 +138,7 @@ namespace Xstream
                 return -1;
             }
 
-            if (!(bool)_joystickGuidList.GetByIndex(joystickIndex))
+            if (_joystickGuidList.GetByIndex(joystickIndex) == null)
             {
                 Debug.WriteLine("Joystick device does not support controllermode");
                 return -1;
