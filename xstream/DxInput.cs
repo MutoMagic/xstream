@@ -215,7 +215,8 @@ namespace Xstream
             for (int i = 2; i < controllerMapping.Length; i++)
             {
                 string[] mapping = controllerMapping[i].Split(':');
-                _controllerMapping.Add(mapping[0], mapping[1]);
+                if (mapping.Length == 2)
+                    _controllerMapping.Add(mapping[0], mapping[1]);
             }
 
             // Poll events from joystick

@@ -29,10 +29,10 @@ namespace Xstream
             ClientSize = new Size(_config.VideoMaximumWidth, _config.VideoMaximumHeight);
 
             KeyPreview = Program.GetSettingBool("useController.KeyPreview");
-            KeyPress += new KeyPressEventHandler((sender, e) =>
+            KeyPress += (sender, e) =>
             {
                 MessageBox.Show("Form.KeyPress: '" + e.KeyChar.ToString() + "' consumed.");
-            });
+            };
 
             InitializeComponent();
 
@@ -56,7 +56,7 @@ namespace Xstream
             Program.Nano.AudioFrameAvailable += Decoder.ConsumeAudioData;
             Program.Nano.VideoFrameAvailable += Decoder.ConsumeVideoData;
 
-            Load += new EventHandler(MainLoop);
+            Shown += MainLoop;
         }
 
         public void MainLoop(object sender, EventArgs e)
