@@ -26,10 +26,10 @@ namespace Xstream
             _useController = useController;
             _config = config;
 
-            this.ClientSize = new Size(_config.VideoMaximumWidth, _config.VideoMaximumHeight);
+            ClientSize = new Size(_config.VideoMaximumWidth, _config.VideoMaximumHeight);
 
-            this.KeyPreview = true;
-            this.KeyPress += new KeyPressEventHandler((sender, e) =>
+            KeyPreview = true;
+            KeyPress += new KeyPressEventHandler((sender, e) =>
             {
                 MessageBox.Show("Form.KeyPress: '" + e.KeyChar.ToString() + "' consumed.");
             });
@@ -51,9 +51,6 @@ namespace Xstream
             {
                 Input = new DxInput($"{AppDomain.CurrentDomain.BaseDirectory}/gamecontrollerdb.txt");
                 HandleInputEvent += Input.HandleInput;
-
-                Input.Initialize();
-                //Input.OpenController(0);
             }
 
             Program.Nano.AudioFrameAvailable += Decoder.ConsumeAudioData;
@@ -61,7 +58,7 @@ namespace Xstream
 
             // MainLoop
 
-            if (_useController && !Input.Initialize())
+            if (_useController && !Input.Initialize(this))
                 throw new InvalidOperationException("Failed to init DirectX Input");
         }
     }
