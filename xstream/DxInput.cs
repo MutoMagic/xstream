@@ -224,7 +224,7 @@ namespace Xstream
 
         public void GetData()
         {
-            if (_directInput.IsDeviceAttached(_controller.Properties.ClassGuid))
+            if (_directInput.IsDeviceAttached(_controller.Information.InstanceGuid))
             {
                 // Poll events from joystick
                 _controller.Poll();
