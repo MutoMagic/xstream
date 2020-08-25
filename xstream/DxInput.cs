@@ -85,11 +85,14 @@ namespace Xstream
                 for (int i = 0; i < lines.Length; i++)
                 {
                     if (lines[i].StartsWith('#') || lines[i].StartsWith(';'))
-                        continue;
+                        continue;// 仅处理整行注释，行内注释一律当作实际值处理。
 
                     string[] columns = lines[i].Split(',');
-                    if (columns.Length > 2)
-                        controllerMappings.Add($"{columns[0]}[{columns[1]}]", columns);
+                    if (columns.Length < 2)
+                        continue;// 前两个必须是ProductGuid及ProductName，顺序都不能错。
+
+                    // 别忘了中括号，因为ProductGuid会重。
+                    controllerMappings.Add($"{columns[0]}[{columns[1]}]", columns);
                 }
             }
 
