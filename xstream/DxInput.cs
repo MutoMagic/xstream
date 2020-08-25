@@ -88,7 +88,8 @@ namespace Xstream
                         continue;
 
                     string[] columns = lines[i].Split(',');
-                    controllerMappings.Add($"{columns[0]}[{columns[1]}]", columns);
+                    if (columns.Length > 2)
+                        controllerMappings.Add($"{columns[0]}[{columns[1]}]", columns);
                 }
             }
 
