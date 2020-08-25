@@ -54,8 +54,10 @@ namespace Xstream
             };
 
         DirectInput _directInput;
-        SortedList _joystickGuidList = new SortedList();// Dictionary<Guid, bool>
+        SortedList _joystickGuidList = new SortedList();// Dictionary<Guid, string[]>
         Joystick _controller = null;
+
+        Dictionary<string, string> _controllerMapping = new Dictionary<string, string>();
 
         public DxInput(string controllerMappingFilepath)
         {
@@ -74,13 +76,17 @@ namespace Xstream
         {
             _hwnd = f.Handle;
 
+            Dictionary<string, string[]> controllerMappings = new Dictionary<string, string[]>();
+
             if (ControllerMappingFilepath != null)
             {
                 string[] lines = File.ReadAllLines(ControllerMappingFilepath);
 
-                string[][] controllerMappings = new string[lines.Length][];
                 for (int i = 0; i < lines.Length; i++)
-                    controllerMappings[i] = lines[i].Split(',');
+                {
+                    string[] columns = lines[i].Split(',');
+                    controllerMappings.Add(columns[0], columns);
+                }
             }
 
             // Initialize DirectInput
@@ -118,9 +124,12 @@ namespace Xstream
             Debug.WriteLine("Found {0} joysticks", numJoysticks);
             for (int i = 0; i < numJoysticks; i++)
             {
-                if (IsGameController(i))
+                joystickGuid = (Guid)_joystickGuidList.GetKey(i);
+                string guid = joystickGuid.ToString("N");
+
+                if (controllerMappings.ContainsKey(guid))
                 {
-                    _joystickGuidList.SetByIndex(i, true);
+                    _joystickGuidList.SetByIndex(i, controllerMappings[guid]);
 
                     Debug.WriteLine("Found a gamecontroller (Index: {0})", i);
                     OpenController(i);
@@ -138,7 +147,9 @@ namespace Xstream
                 return -1;
             }
 
-            if (_joystickGuidList.GetByIndex(joystickIndex) == null)
+            string[] controllerMapping = (string[])_joystickGuidList.GetByIndex(joystickIndex);
+
+            if (controllerMapping == null)
             {
                 Debug.WriteLine("Joystick device does not support controllermode");
                 return -1;
@@ -191,6 +202,12 @@ namespace Xstream
 
             _controller = joystick;
             Debug.WriteLine("Opened Controller {0} {1}", joystickIndex, _controller.Information.ProductName);
+
+            for (int i = 2; i < controllerMapping.Length; i++)
+            {
+                string[] mapping = controllerMapping[i].Split(':');
+                _controllerMapping.Add(mapping[0], mapping[1]);
+            }
 
             // Poll events from joystick
             //while (true)
@@ -249,11 +266,6 @@ namespace Xstream
                 default:
                     throw new NotSupportedException($"Invalid InputEventType: {e.EventType}");
             }
-        }
-
-        private bool IsGameController(int joystickIndex)
-        {
-            return true;
         }
     }
 }
