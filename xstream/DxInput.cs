@@ -2,6 +2,7 @@
 using SmartGlass.Nano;
 using SmartGlass.Nano.Packets;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Windows.Forms;
@@ -52,7 +53,7 @@ namespace Xstream
             };
 
         DirectInput _directInput;
-        List<Guid> _joystickGuidList = new List<Guid>();
+        SortedList _joystickGuidList = new SortedList();// Dictionary<Guid, bool>
         Joystick _controller = null;
 
         public DxInput(string controllerMappingFilepath)
@@ -82,7 +83,7 @@ namespace Xstream
                 in _directInput.GetDevices(DeviceType.Gamepad, DeviceEnumerationFlags.AllDevices))
             {
                 joystickGuid = deviceInstance.InstanceGuid;
-                _joystickGuidList.Add(joystickGuid);
+                _joystickGuidList.Add(joystickGuid, false);
             }
 
             // If Gamepad not found, look for a Joystick
@@ -91,7 +92,7 @@ namespace Xstream
                     in _directInput.GetDevices(DeviceType.Joystick, DeviceEnumerationFlags.AllDevices))
                 {
                     joystickGuid = deviceInstance.InstanceGuid;
-                    _joystickGuidList.Add(joystickGuid);
+                    _joystickGuidList.Add(joystickGuid, false);
                 }
 
             // If Joystick not found, throws an error
@@ -109,6 +110,8 @@ namespace Xstream
             {
                 if (IsGameController(i))
                 {
+                    _joystickGuidList.SetByIndex(i, true);
+
                     Debug.WriteLine("Found a gamecontroller (Index: {0})", i);
                     OpenController(i);
                 }
@@ -125,7 +128,7 @@ namespace Xstream
                 return -1;
             }
 
-            if (!IsGameController(joystickIndex))
+            if (!(bool)_joystickGuidList.GetByIndex(joystickIndex))
             {
                 Debug.WriteLine("Joystick device does not support controllermode");
                 return -1;
@@ -138,7 +141,7 @@ namespace Xstream
                 CloseController();
             }
 
-            var joystickGuid = _joystickGuidList[joystickIndex];
+            var joystickGuid = (Guid)_joystickGuidList.GetKey(joystickIndex);
 
             // Instantiate the joystick
             var joystick = new Joystick(_directInput, joystickGuid);
@@ -161,26 +164,28 @@ namespace Xstream
             Debug.WriteLine("Opened Controller {0} {1}", joystickIndex, _controller.Information.ProductName);
 
             // Poll events from joystick
-            while (true)
-            {
-                joystick.Poll();
-                var datas = joystick.GetBufferedData();
-                foreach (var state in datas)
-                    Debug.WriteLine(state);
-            }
+            //while (true)
+            //{
+            //    joystick.Poll();
+            //    var datas = joystick.GetBufferedData();
+            //    foreach (var state in datas)
+            //        Debug.WriteLine(state);
+            //}
 
             return 0;
         }
 
         public void CloseController()
         {
-            if (_controller == null || _controller.IsDisposed)
+            if (_controller == null)
             {
                 Debug.WriteLine("Controller is not initialized, cannot remove");
                 return;
             }
             Debug.WriteLine("Removing Controller...");
-            _controller.Dispose();
+            if (!_controller.IsDisposed)
+                _controller.Dispose();
+            _controller = null;// .NET GC
         }
 
         private void HandleControllerButtonChange(NanoGamepadButton button, bool pressed)
