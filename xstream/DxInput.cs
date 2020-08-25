@@ -239,10 +239,18 @@ namespace Xstream
             {
                 if (e.ResultCode.Code == ResultCode.InputLost.Code
                     || e.ResultCode.Code == ResultCode.NotAcquired.Code)
+                {
                     _controller.Acquire();
+                    return;
+                }
 
                 if (e.ResultCode.Code == ResultCode.NotAttached.Code)
+                {
                     OpenController(_joystickIndex);
+                    return;
+                }
+
+                Debug.WriteLine(e.ToString());
             }
         }
 
