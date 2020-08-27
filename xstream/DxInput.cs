@@ -63,9 +63,7 @@ namespace Xstream
         ~DxInput()
         {
             CloseController();
-
-            if (_directInput != null && !_directInput.IsDisposed)
-                _directInput.Dispose();
+            _directInput?.Dispose();
         }
 
         public DxInput(string controllerMappingFilepath)
