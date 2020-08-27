@@ -32,9 +32,9 @@ namespace Xstream
             ClientSize = new Size(_config.VideoMaximumWidth, _config.VideoMaximumHeight);
 
             KeyPreview = Program.GetSettingBool("useController.KeyPreview");
-            KeyPress += (sender, e) =>
+            KeyDown += (sender, e) =>
             {
-                MessageBox.Show("Form.KeyPress: '" + e.KeyChar.ToString() + "' consumed.");
+                MessageBox.Show("Form.KeyPress: '" + e.KeyCode + "' consumed.");
             };
 
             InitializeComponent();
@@ -70,9 +70,8 @@ namespace Xstream
                 {
                     try
                     {
-                        Input.GetData();
-                        //await Program.Nano.Input.SendInputFrame(
-                        //    DateTime.UtcNow, Input.Buttons, Input.Analog, Input.Extension);
+                        await Program.Nano.Input.SendInputFrame(
+                            DateTime.UtcNow, Input.Buttons, Input.Analog, Input.Extension);
                     }
                     catch
                     {
@@ -87,10 +86,14 @@ namespace Xstream
             if (_useController && !Input.Initialize(this))
                 throw new InvalidOperationException("Failed to init DirectX Input");
 
+            _audioRenderer.Initialize(1024);
+
             if (_useController)
             {
                 StartInputFrameSendingTask();
             }
+
+
         }
     }
 }

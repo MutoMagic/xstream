@@ -43,8 +43,8 @@ namespace Xstream.Codec
         /// <param name="codecID">编解码器标识符</param>
         /// <param name="sampleRate">采样率</param>
         /// <param name="channels">通道数</param>
-        /// <param name="sampleSize">样本大小</param>
-        /// <param name="sampleType">样本类型</param>
+        /// <param name="sampleSize">采样精度</param>
+        /// <param name="sampleType">PCM Type</param>
         public void Initialize(AudioCodec codecID, int sampleRate, int channels,
                                uint sampleSize = 0, uint sampleType = 0)
         {

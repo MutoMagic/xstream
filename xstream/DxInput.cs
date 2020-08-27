@@ -60,6 +60,14 @@ namespace Xstream
 
         Dictionary<string, string> _controllerMapping = new Dictionary<string, string>();
 
+        ~DxInput()
+        {
+            CloseController();
+
+            if (_directInput != null && !_directInput.IsDisposed)
+                _directInput.Dispose();
+        }
+
         public DxInput(string controllerMappingFilepath)
         {
             ControllerMappingFilepath = controllerMappingFilepath;
@@ -71,14 +79,14 @@ namespace Xstream
 
             // Set "controller byte"
             Extension.Unknown1 = 1;
+
+            // Initialize DirectInput
+            _directInput = new DirectInput();
         }
 
         private bool Initialize()
         {
             _joystickGuidList.Clear();
-
-            // Initialize DirectInput
-            _directInput = new DirectInput();
 
             // Find a Joystick Guid
             var joystickGuid = Guid.Empty;
@@ -235,11 +243,12 @@ namespace Xstream
             }
 
             Debug.WriteLine("Removing Controller...");
-
             if (!_controller.IsDisposed)
             {
                 _controller.Unacquire();
                 _controller.Dispose();
+
+                Debug.WriteLine("Controller Disposed");
             }
 
             _controller = null;
@@ -281,10 +290,12 @@ namespace Xstream
 
         public JoystickUpdate[] GetData()
         {
-            if (_controller == null
-                || !_directInput.IsDeviceAttached(_controller.Information.InstanceGuid))
+            if (_controller == null)
+                return null;
+
+            if (!_directInput.IsDeviceAttached(_controller.Information.InstanceGuid))
             {
-                if (!ReInitialize())
+                if (!Initialize())
                     return null;
             }
 
@@ -312,17 +323,6 @@ namespace Xstream
         public bool Initialize(Form f)
         {
             _hwnd = f.Handle;
-            return Initialize();
-        }
-
-        public bool ReInitialize()
-        {
-            if (!Initialized)
-            {
-                Debug.WriteLine("DirectInput needs to be initialized once");
-                return false;
-            }
-
             return Initialize();
         }
     }
