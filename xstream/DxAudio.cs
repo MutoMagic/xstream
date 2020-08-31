@@ -1,20 +1,55 @@
-﻿using SharpDX;
-using SharpDX.Multimedia;
+﻿using SharpDX.Multimedia;
 using SharpDX.XAudio2;
-using SharpDX.XAudio2.Fx;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Threading;
+using System.Runtime.InteropServices;
 using Xstream.Codec;
 
 namespace Xstream
 {
-    struct DataQueuePacket
+    unsafe struct DataQueuePacket
     {
         internal uint datalen;// bytes currently in use in this packet.
-        internal int startpos;// bytes currently consumed in this packet.
-        internal IntPtr data;// packet data
+        internal uint startpos;// bytes currently consumed in this packet.
+        object _next;// next item in linked list.
+        internal byte* data;// packet data
+
+        // 防止在结构布局中导致循环
+        internal DataQueuePacket? next
+        {
+            get { return (DataQueuePacket?)_next; }
+            set { _next = value; }
+        }
+
+        public DataQueuePacket(DataQueuePacket? next, uint packetlen)
+        {
+            datalen = 0;
+            startpos = 0;
+            _next = next;
+
+            // #define SDL_VARIABLE_LENGTH_ARRAY 1
+            // Uint8 data[SDL_VARIABLE_LENGTH_ARRAY];
+            data = (byte*)Marshal.AllocHGlobal(Marshal.SizeOf(typeof(byte))
+                + (int)packetlen);
+        }
+    }
+
+    struct DataQueue
+    {
+        internal DataQueuePacket? head;// device fed from here.
+        internal DataQueuePacket? tail;// queue fills to here.
+        internal DataQueuePacket? pool;// these are unused packets.
+        internal uint packet_size;// size of new packets
+        internal uint queued_bytes;// number of bytes of data in the queue.
+
+        public DataQueue(uint packetlen)
+        {
+            head = null;
+            tail = null;
+            pool = null;
+            packet_size = packetlen;
+            queued_bytes = 0;
+        }
     }
 
     public unsafe class DxAudio
@@ -33,7 +68,7 @@ namespace Xstream
 
         object _lock = new object();
         bool _paused;
-        Queue<DataQueuePacket> _buffer_queue;
+        DataQueue _buffer_queue;
 
         ~DxAudio()
         {
@@ -87,7 +122,17 @@ namespace Xstream
 
             // waveFormat.BitsPerSample / 8 * _channels * samples;
             _bufferSize = waveFormat.BlockAlign * samples;
-            _buffer_queue = new Queue<DataQueuePacket>();
+
+            const uint packetlen = 8 * 1024;// SDL_AUDIOBUFFERQUEUE_PACKETLEN
+            uint initialslack = (uint)(_bufferSize * 2);
+            uint wantpackets = initialslack + (packetlen - 1) / packetlen;
+
+            _buffer_queue = new DataQueue(packetlen);
+
+            for (int i = 0; i < wantpackets; i++)
+            {
+                _buffer_queue.pool = new DataQueuePacket(_buffer_queue.pool, packetlen);
+            }
 
             Pause(0);// start audio playing.
 
@@ -110,7 +155,8 @@ namespace Xstream
                 return -1;
             }
 
-            return Queue(data, length);
+            QueueAudio(data, length);
+            return 0;
         }
 
         public int Close()
@@ -143,33 +189,32 @@ namespace Xstream
             }
         }
 
-        public int Queue(IntPtr data, uint length)
+        private void QueueAudio(IntPtr data, uint length)
         {
-            int rc = 0;
-
-            if (!Initialized)
-                return -1;
-
-            lock (_lock)
+            if (length > 0)
             {
-                if (length > 0)
-                    rc = WriteToDataQueue(data, length);
+                lock (_lock)
+                {
+                    WriteToDataQueue(data, length);
+                }
             }
-
-            return rc;
         }
 
-        public int WriteToDataQueue(IntPtr data, uint length)
+        private void WriteToDataQueue(IntPtr data, uint length)
         {
-            DataQueuePacket packet;
+            while (length > 0)
+            {
+                DataQueuePacket? packet = _buffer_queue.tail;
+                if (!packet.HasValue || packet?.datalen >= _buffer_queue.packet_size)
+                {
+                    // tail packet missing or completely full; we need a new packet.
+                }
+            }
+        }
 
-            packet.datalen = length;
-            packet.startpos = 0;
-            packet.data = data;
+        public void BufferQueueDrainCallback(byte* stream, int len)
+        {
 
-            _buffer_queue.Enqueue(packet);
-
-            return 0;
         }
     }
 }
