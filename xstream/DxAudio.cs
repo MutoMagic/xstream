@@ -3,42 +3,47 @@ using SharpDX.XAudio2;
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Security;
 using Xstream.Codec;
 
 namespace Xstream
 {
-    unsafe struct DataQueuePacket
+    unsafe class DataQueuePacket
     {
         internal uint datalen;// bytes currently in use in this packet.
         internal uint startpos;// bytes currently consumed in this packet.
-        object _next;// next item in linked list.
+        internal DataQueuePacket next;// next item in linked list.
+        // #define SDL_VARIABLE_LENGTH_ARRAY 1
+        // Uint8 data[SDL_VARIABLE_LENGTH_ARRAY];
         internal byte* data;// packet data
 
-        // 防止在结构布局中导致循环
-        internal DataQueuePacket? next
-        {
-            get { return (DataQueuePacket?)_next; }
-            set { _next = value; }
-        }
-
-        public DataQueuePacket(DataQueuePacket? next, uint packetlen)
+        public DataQueuePacket(DataQueuePacket _next, uint packetlen)
         {
             datalen = 0;
             startpos = 0;
-            _next = next;
+            next = _next;
 
-            // #define SDL_VARIABLE_LENGTH_ARRAY 1
-            // Uint8 data[SDL_VARIABLE_LENGTH_ARRAY];
+            // Marshal.SizeOf(typeof(byte)) * 1
             data = (byte*)Marshal.AllocHGlobal(Marshal.SizeOf(typeof(byte))
                 + (int)packetlen);
         }
+
+        public static void FreeDataQueueList(DataQueuePacket packet)
+        {
+            while (packet != null)
+            {
+                DataQueuePacket next = packet.next;
+                Marshal.FreeHGlobal((IntPtr)packet.data);
+                packet = next;
+            }
+        }
     }
 
-    struct DataQueue
+    class DataQueue
     {
-        internal DataQueuePacket? head;// device fed from here.
-        internal DataQueuePacket? tail;// queue fills to here.
-        internal DataQueuePacket? pool;// these are unused packets.
+        internal DataQueuePacket head;// device fed from here.
+        internal DataQueuePacket tail;// queue fills to here.
+        internal DataQueuePacket pool;// these are unused packets.
         internal uint packet_size;// size of new packets
         internal uint queued_bytes;// number of bytes of data in the queue.
 
@@ -68,7 +73,7 @@ namespace Xstream
 
         object _lock = new object();
         bool _paused;
-        DataQueue _buffer_queue;
+        DataQueue _queue;
 
         ~DxAudio()
         {
@@ -127,11 +132,11 @@ namespace Xstream
             uint initialslack = (uint)(_bufferSize * 2);
             uint wantpackets = initialslack + (packetlen - 1) / packetlen;
 
-            _buffer_queue = new DataQueue(packetlen);
+            _queue = new DataQueue(packetlen);
 
             for (int i = 0; i < wantpackets; i++)
             {
-                _buffer_queue.pool = new DataQueuePacket(_buffer_queue.pool, packetlen);
+                _queue.pool = new DataQueuePacket(_queue.pool, packetlen);
             }
 
             Pause(0);// start audio playing.
@@ -143,11 +148,11 @@ namespace Xstream
         {
             fixed (byte* p = sample.SampleData)
             {
-                return UpdateAudio((IntPtr)p, (uint)sample.SampleData.Length);
+                return UpdateAudio(p, (uint)sample.SampleData.Length);
             }
         }
 
-        private int UpdateAudio(IntPtr data, uint length)
+        private int UpdateAudio(byte* data, uint length)
         {
             if (!Initialized)
             {
@@ -155,8 +160,7 @@ namespace Xstream
                 return -1;
             }
 
-            QueueAudio(data, length);
-            return 0;
+            return QueueAudio(data, length);
         }
 
         public int Close()
@@ -189,32 +193,99 @@ namespace Xstream
             }
         }
 
-        private void QueueAudio(IntPtr data, uint length)
+        private int QueueAudio(byte* data, uint length)
         {
             if (length > 0)
             {
                 lock (_lock)
                 {
-                    WriteToDataQueue(data, length);
+                    return WriteToDataQueue(data, length);
                 }
             }
+
+            return 0;
         }
 
-        private void WriteToDataQueue(IntPtr data, uint length)
+        private int WriteToDataQueue(byte* data, uint length)
         {
+            DataQueuePacket orighead = _queue.head;
+            DataQueuePacket origtail = _queue.tail;
+            uint origlen = origtail != null ? origtail.datalen : 0;
+            uint datalen;
+
             while (length > 0)
             {
-                DataQueuePacket? packet = _buffer_queue.tail;
-                if (!packet.HasValue || packet?.datalen >= _buffer_queue.packet_size)
+                DataQueuePacket packet = _queue.tail;
+                if (packet == null || packet.datalen >= _queue.packet_size)
                 {
                     // tail packet missing or completely full; we need a new packet.
+                    packet = AllocateDataQueuePacket();
+                    if (packet == null)
+                    {
+                        if (origtail == null)
+                        {
+                            packet = _queue.head;// whole queue.
+                        }
+                        else
+                        {
+                            packet = origtail.next;// what we added to existing queue.
+                            origtail.next = null;
+                            origtail.datalen = origlen;
+                        }
+                        _queue.head = orighead;
+                        _queue.tail = origtail;
+                        _queue.pool = null;
+
+                        DataQueuePacket.FreeDataQueueList(packet);// give back what we can.
+                        return new OutOfMemoryException().HResult;
+                    }
                 }
+
+                datalen = Math.Min(length, _queue.packet_size - packet.datalen);
+                CopyMemory(packet.data + packet.datalen, data, datalen);
+                data += datalen;
+                length -= datalen;
+                packet.datalen += datalen;
+                _queue.queued_bytes += datalen;
             }
+
+            return 0;
         }
 
-        public void BufferQueueDrainCallback(byte* stream, int len)
+        private DataQueuePacket AllocateDataQueuePacket()
+        {
+            DataQueuePacket packet = _queue.pool;
+
+            if (packet != null)
+            {
+                // we have one available in the pool.
+                _queue.pool = packet.next;
+            }
+            else
+            {
+                // Have to allocate a new one!
+                packet = new DataQueuePacket(null, _queue.packet_size);
+            }
+
+            if (_queue.tail == null)
+            {
+                _queue.head = packet;
+            }
+            else
+            {
+                _queue.tail.next = packet;
+            }
+            _queue.tail = packet;
+            return packet;
+        }
+
+        private void BufferQueueDrainCallback(byte* stream, int len)
         {
 
         }
+
+        [DllImport("msvcrt.dll", EntryPoint = "memcpy", CallingConvention = CallingConvention.Cdecl
+            , SetLastError = false), SuppressUnmanagedCodeSecurity]
+        public static unsafe extern void* CopyMemory(void* dest, void* src, ulong count);
     }
 }
