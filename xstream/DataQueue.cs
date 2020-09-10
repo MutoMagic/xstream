@@ -120,8 +120,8 @@ namespace Xstream
                     return null;
             }
 
-            //packet.datalen = 0;
-            //packet.startpos = 0;
+            packet.datalen = 0;
+            packet.startpos = 0;
             packet.next = null;
 
             if (queue.tail == null)
@@ -134,6 +134,45 @@ namespace Xstream
             }
             queue.tail = packet;
             return packet;
+        }
+
+        public static uint ReadFromDataQueue(DataQueue queue, byte* _buf, uint _len)
+        {
+            uint len = _len;
+            byte* buf = _buf;
+            byte* ptr = _buf;
+            DataQueuePacket packet = queue.head;
+
+            if (queue == null)
+            {
+                return 0;
+            }
+
+            while (len > 0 && packet != null)
+            {
+                uint avail = packet.datalen - packet.startpos;
+                uint cpy = Math.Min(len, avail);
+
+                Program.CopyMemory(ptr, packet.data + packet.startpos, cpy);
+                packet.startpos += cpy;
+                ptr += cpy;
+                queue.queued_bytes -= cpy;
+                len -= cpy;
+
+                if (packet.startpos == packet.datalen)
+                {
+                    queue.head = packet.next;
+                    packet.next = queue.pool;
+                    queue.pool = packet;
+                }
+            }
+
+            if (queue.head == null)
+            {
+                queue.tail = null;// in case we drained the queue entirely.
+            }
+
+            return (uint)(ptr - buf);
         }
     }
 

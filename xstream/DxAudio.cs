@@ -95,7 +95,7 @@ namespace Xstream
             _mixlen = 2 * _bufferSize;
             _mixbuf = (byte*)Marshal.AllocHGlobal(_mixlen);
             _nextbuf = _mixbuf;
-            Program.MemorySet(_mixbuf, _waveFormat.silence, _mixlen);
+            Program.SetMemory(_mixbuf, _waveFormat.silence, _mixlen);
 
             _worklen = _bufferSize;
             _workbuf = (byte*)Marshal.AllocHGlobal(_worklen);
@@ -208,6 +208,8 @@ namespace Xstream
         // The general mixing thread function
         private void RunAudio()
         {
+            int delay = _samples * 1000 / _sampleRate;
+
             byte* data;
 
             // Loop, filling the audio buffers
@@ -240,7 +242,7 @@ namespace Xstream
                 {
                     if (_paused)
                     {
-                        Program.MemorySet(data, _waveFormat.silence, _bufferSize);
+                        Program.SetMemory(data, _waveFormat.silence, _bufferSize);
                     }
                     else
                     {
@@ -251,17 +253,41 @@ namespace Xstream
                 if (data == _workbuf)
                 {
                     // nothing to do; pause like we queued a buffer to play.
-                    Program.Delay(_samples * 1000 / _sampleRate);
+                    Program.Delay(delay);
                 }
                 else
                 {
                     // writing directly to the device.
                     // queue this buffer and wait for it to finish playing.
+                    PlayDevice();
+                    WaitDevice();
                 }
             }
+
+            // Wait for the audio to drain.
+            Program.Delay(delay * 2);
         }
 
         private void BufferQueueDrainCallback(byte* stream, int len)
+        {
+            // this function always holds the mixer lock before being called.
+            uint dequeued = DataQueuePacket.ReadFromDataQueue(_queue, stream, (uint)len);
+            stream += dequeued;
+            len -= (int)dequeued;
+
+            if (len > 0)
+            {
+                // fill any remaining space in the stream with silence.
+                Program.SetMemory(stream, _waveFormat.silence, len);
+            }
+        }
+
+        private void PlayDevice()
+        {
+
+        }
+
+        private void WaitDevice()
         {
 
         }

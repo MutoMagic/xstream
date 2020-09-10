@@ -303,7 +303,7 @@ namespace Xstream
         }
 
         [DllImport("msvcrt.dll", EntryPoint = "memset", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
-        public static unsafe extern void* MemorySet(void* dest, int c, int byteCount);
+        public static unsafe extern void* SetMemory(void* dest, int c, int byteCount);
         [DllImport("Kernel32.dll", EntryPoint = "RtlZeroMemory", SetLastError = false)]
         public static unsafe extern void ZeroMemory(void* Destination, uint Length);
         [DllImport("msvcrt.dll", EntryPoint = "memcpy", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
