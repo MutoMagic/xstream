@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Runtime.InteropServices;
-using System.Security;
 
 namespace Xstream
 {
@@ -19,13 +18,15 @@ namespace Xstream
             Dispose();
         }
 
-        public DataQueuePacket(uint packetlen)
+        public DataQueuePacket(int packetlen)
         {
             try
             {
                 // Marshal.SizeOf(typeof(byte)) * 1
-                data = (byte*)Marshal.AllocHGlobal(Marshal.SizeOf(typeof(byte))
-                    + (int)packetlen);
+                int size = Marshal.SizeOf(typeof(byte)) + packetlen;
+
+                data = (byte*)Marshal.AllocHGlobal(size);
+                Program.ZeroMemory(data, (uint)size);
             }
             catch (OutOfMemoryException e)
             {
@@ -34,10 +35,15 @@ namespace Xstream
             }
         }
 
+        public DataQueuePacket(uint packetlen) : this((int)packetlen) { }
+
         public void Dispose()
         {
-            Marshal.FreeHGlobal((IntPtr)data);
-            data = null;// 预防野指针
+            if (data != null)
+            {
+                Marshal.FreeHGlobal((IntPtr)data);
+                data = null;// 预防野指针
+            }
         }
 
         public static void FreeDataQueueList(DataQueuePacket packet)
@@ -87,7 +93,7 @@ namespace Xstream
                 }
 
                 datalen = Math.Min(length, queue.packet_size - packet.datalen);
-                CopyMemory(packet.data + packet.datalen, data, datalen);
+                Program.CopyMemory(packet.data + packet.datalen, data, datalen);
                 data += datalen;
                 length -= datalen;
                 packet.datalen += datalen;
@@ -129,10 +135,6 @@ namespace Xstream
             queue.tail = packet;
             return packet;
         }
-
-        [DllImport("msvcrt.dll", EntryPoint = "memcpy", CallingConvention = CallingConvention.Cdecl
-                , SetLastError = false), SuppressUnmanagedCodeSecurity]
-        public static unsafe extern void* CopyMemory(void* dest, void* src, ulong count);
     }
 
     class DataQueue

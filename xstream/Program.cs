@@ -276,22 +276,38 @@ namespace Xstream
 
         public static string GetMappingString(string key) => GetConfigurationString("MAPPING", key);
 
-        public static bool GetConfigurationBool(string section, string key) =>
+        static bool GetConfigurationBool(string section, string key) =>
             bool.Parse(GetConfigurationString(section, key));
 
-        public static int GetConfigurationInt(string section, string key) =>
+        static int GetConfigurationInt(string section, string key) =>
             int.Parse(GetConfigurationString(section, key));
 
-        public static string GetConfigurationString(string section, string key) =>
+        static string GetConfigurationString(string section, string key) =>
             GetPrivateProfileString(section, key, "", "./cfg.ini");
 
-        public static string GetPrivateProfileString(string section, string key, string def, string filePath)
+        static string GetPrivateProfileString(string section, string key, string def, string filePath)
         {
             StringBuilder sb = new StringBuilder(255);
             GetPrivateProfileString(section, key, def, sb, sb.Capacity, filePath);
             return sb.ToString();
         }
 
+        public static void Delay(int ms) => Delay((uint)ms);
+
+        public static void Delay(uint ms)
+        {
+            uint max_delay = 0xffffffffU / 1000;
+            if (ms > max_delay)
+                ms = max_delay;
+            Sleep(ms);
+        }
+
+        [DllImport("msvcrt.dll", EntryPoint = "memset", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
+        public static unsafe extern void* MemorySet(void* dest, int c, int byteCount);
+        [DllImport("Kernel32.dll", EntryPoint = "RtlZeroMemory", SetLastError = false)]
+        public static unsafe extern void ZeroMemory(void* Destination, uint Length);
+        [DllImport("msvcrt.dll", EntryPoint = "memcpy", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
+        public static unsafe extern void* CopyMemory(void* dest, void* src, uint count);
         [DllImport("kernel32")]
         public static extern bool AllocConsole();
         [DllImport("kernel32")]
@@ -304,5 +320,7 @@ namespace Xstream
             StringBuilder lpReturnedString,
             int nSize,
             string lpFileName);
+        [DllImport("kernel32")]
+        static extern void Sleep(uint dwMilliseconds);
     }
 }
