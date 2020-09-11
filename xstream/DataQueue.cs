@@ -5,28 +5,25 @@ namespace Xstream
 {
     unsafe class DataQueuePacket : IDisposable
     {
+        internal OutOfMemoryException err;
+
         internal uint datalen;// bytes currently in use in this packet.
         internal uint startpos;// bytes currently consumed in this packet.
         internal DataQueuePacket next;// next item in linked list.
         // #define SDL_VARIABLE_LENGTH_ARRAY 1
         // Uint8 data[SDL_VARIABLE_LENGTH_ARRAY];
         internal byte* data;// packet data
-        internal OutOfMemoryException err;
 
         ~DataQueuePacket()
         {
             Dispose();
         }
 
-        public DataQueuePacket(int packetlen)
+        public DataQueuePacket(uint packetlen)
         {
             try
             {
-                // Marshal.SizeOf(typeof(byte)) * 1
-                int size = Marshal.SizeOf(typeof(byte)) + packetlen;
-
-                data = (byte*)Marshal.AllocHGlobal(size);
-                Program.ZeroMemory(data, (uint)size);
+                data = (byte*)Marshal.AllocHGlobal(Marshal.SizeOf<byte>() + (int)packetlen);
             }
             catch (OutOfMemoryException e)
             {
@@ -34,8 +31,6 @@ namespace Xstream
                 err = e;
             }
         }
-
-        public DataQueuePacket(uint packetlen) : this((int)packetlen) { }
 
         public void Dispose()
         {
@@ -46,13 +41,30 @@ namespace Xstream
             }
         }
 
-        public static void FreeDataQueueList(DataQueuePacket packet)
+        public static DataQueue NewDataQueue(uint _packetlen, uint initialslack)
         {
-            while (packet != null)
+            DataQueue queue = new DataQueue();
+
+            uint packetlen = _packetlen > 0 ? _packetlen : 1024;
+            uint wantpackets = (initialslack + (packetlen - 1)) / packetlen;
+
+            queue.packet_size = packetlen;
+
+            for (uint i = 0; i < wantpackets; i++)
             {
-                packet.Dispose();
-                packet = packet.next;
+                DataQueuePacket packet = new DataQueuePacket(packetlen);
+
+                // don't care if this fails, we'll deal later.
+                if (packet.data != null)
+                {
+                    packet.datalen = 0;
+                    packet.startpos = 0;
+                    packet.next = queue.pool;
+                    queue.pool = packet;
+                }
             }
+
+            return queue;
         }
 
         public static int WriteToDataQueue(DataQueue queue, byte* data, uint length)
@@ -136,17 +148,22 @@ namespace Xstream
             return packet;
         }
 
-        public static uint ReadFromDataQueue(DataQueue queue, byte* _buf, uint _len)
+        public static void FreeDataQueueList(DataQueuePacket packet)
         {
-            uint len = _len;
-            byte* buf = _buf;
-            byte* ptr = _buf;
-            DataQueuePacket packet = queue.head;
-
-            if (queue == null)
+            while (packet != null)
             {
-                return 0;
+                packet.Dispose();
+                packet = packet.next;
             }
+        }
+
+        public static uint ReadFromDataQueue(DataQueue queue, byte* buf, uint len)
+        {
+            if (queue == null)
+                return 0;
+
+            DataQueuePacket packet = queue.head;
+            byte* ptr = buf;
 
             while (len > 0 && packet != null)
             {

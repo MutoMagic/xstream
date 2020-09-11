@@ -302,10 +302,10 @@ namespace Xstream
             Sleep(ms);
         }
 
-        [DllImport("msvcrt.dll", EntryPoint = "memset", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
-        public static unsafe extern void* SetMemory(void* dest, int c, int byteCount);
         [DllImport("Kernel32.dll", EntryPoint = "RtlZeroMemory", SetLastError = false)]
         public static unsafe extern void ZeroMemory(void* Destination, uint Length);
+        [DllImport("msvcrt.dll", EntryPoint = "memset", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
+        public static unsafe extern void* SetMemory(void* dest, int c, uint byteCount);
         [DllImport("msvcrt.dll", EntryPoint = "memcpy", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
         public static unsafe extern void* CopyMemory(void* dest, void* src, uint count);
         [DllImport("kernel32")]

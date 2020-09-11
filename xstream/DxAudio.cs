@@ -10,6 +10,16 @@ namespace Xstream
 {
     public unsafe class DxAudio
     {
+        const int XAUDIO2_DEFAULT_CHANNELS = 0;
+        const int SDL_AUDIOBUFFERQUEUE_PACKETLEN = 8 * 1024;
+
+        unsafe struct PrivateAudioData
+        {
+            internal byte* mixbuf;
+            internal int mixlen;
+            internal byte* nextbuf;
+        }
+
         public bool Initialized => _dev != null;
 
         string _dev;
@@ -23,11 +33,9 @@ namespace Xstream
         SourceVoice _sourceVoice;
 
         int _bufferSize;
+        int _bufferSize2;
         DataQueue _queue;
-        byte* _mixbuf;
-        int _mixlen;
-        byte* _nextbuf;
-
+        PrivateAudioData _hidden;
         int _worklen;
         byte* _workbuf;
 
@@ -68,41 +76,26 @@ namespace Xstream
 
             OpenDevice();
 
-            // _waveFormat.wBitsPerSample / 8 * _channels * samples;
             _bufferSize = _waveFormat.nBlockAlign * samples;
+            _bufferSize2 = _bufferSize * 2;
 
-            const uint packetlen = 8 * 1024;// SDL_AUDIOBUFFERQUEUE_PACKETLEN
-            uint initialslack = (uint)(_bufferSize * 2);
-            uint wantpackets = initialslack + (packetlen - 1) / packetlen;
+            // pool a few packets to start. Enough for two callbacks.
+            _queue = DataQueuePacket.NewDataQueue(SDL_AUDIOBUFFERQUEUE_PACKETLEN, (uint)_bufferSize2);
 
-            _queue = new DataQueue();
-            _queue.packet_size = packetlen;
+            // We feed a Source, it feeds the Mastering, which feeds the device.
+            _hidden.mixlen = _bufferSize;
+            _hidden.mixbuf = (byte*)Marshal.AllocHGlobal(_bufferSize2);
+            _hidden.nextbuf = _hidden.mixbuf;
+            Program.SetMemory(_hidden.mixbuf, _waveFormat.silence, (uint)_bufferSize2);
 
-            for (int i = 0; i < wantpackets; i++)
-            {
-                DataQueuePacket packet = new DataQueuePacket(packetlen);
-
-                // don't care if this fails, we'll deal later.
-                if (packet.data != null)
-                {
-                    //packet.datalen = 0;
-                    //packet.startpos = 0;
-                    packet.next = _queue.pool;
-                    _queue.pool = packet;
-                }
-            }
-
-            _mixlen = 2 * _bufferSize;
-            _mixbuf = (byte*)Marshal.AllocHGlobal(_mixlen);
-            _nextbuf = _mixbuf;
-            Program.SetMemory(_mixbuf, _waveFormat.silence, _mixlen);
-
+            // Allocate a scratch audio buffer
             _worklen = _bufferSize;
             _workbuf = (byte*)Marshal.AllocHGlobal(_worklen);
 
             _thread = new Thread(RunAudio);
             //The audio mixing is always a high priority thread
             _thread.Priority = ThreadPriority.Highest;
+            // Start the audio thread
             _thread.Start();
 
             Pause(0);// start audio playing.
@@ -160,12 +153,6 @@ namespace Xstream
             _masteringVoice = null;
             _xaudio2 = null;
 
-            if (_mixbuf != null)
-            {
-                Marshal.FreeHGlobal((IntPtr)_mixbuf);
-                _mixbuf = null;
-            }
-
             if (_workbuf != null)
             {
                 Marshal.FreeHGlobal((IntPtr)_workbuf);
@@ -195,8 +182,7 @@ namespace Xstream
 
             // The mastering voices encapsulates an audio device.
             // It is the ultimate destination for all audio that passes through an audio graph.
-            // #define XAUDIO2_DEFAULT_CHANNELS 0
-            _masteringVoice = new MasteringVoice(_xaudio2, 0, _sampleRate, _dev);
+            _masteringVoice = new MasteringVoice(_xaudio2, XAUDIO2_DEFAULT_CHANNELS, _sampleRate, _dev);
 
             _waveFormat = new WAVEFORMATEX(SDL_AudioFormat.AUDIO_F32, _channels, _sampleRate);
             _sourceVoice = new SourceVoice(_xaudio2, _waveFormat.local);
@@ -208,8 +194,8 @@ namespace Xstream
         // The general mixing thread function
         private void RunAudio()
         {
+            uint data_len = (uint)_bufferSize;
             int delay = _samples * 1000 / _sampleRate;
-
             byte* data;
 
             // Loop, filling the audio buffers
@@ -218,7 +204,7 @@ namespace Xstream
                 // Fill the current buffer with sound
                 if (_enabled)
                 {
-                    data = _nextbuf;
+                    data = _hidden.nextbuf;
                 }
                 else
                 {
@@ -242,11 +228,11 @@ namespace Xstream
                 {
                     if (_paused)
                     {
-                        Program.SetMemory(data, _waveFormat.silence, _bufferSize);
+                        Program.SetMemory(data, _waveFormat.silence, data_len);
                     }
                     else
                     {
-                        BufferQueueDrainCallback(data, _bufferSize);
+                        BufferQueueDrainCallback(data, data_len);
                     }
                 }
 
@@ -255,9 +241,8 @@ namespace Xstream
                     // nothing to do; pause like we queued a buffer to play.
                     Program.Delay(delay);
                 }
-                else
+                else// writing directly to the device.
                 {
-                    // writing directly to the device.
                     // queue this buffer and wait for it to finish playing.
                     PlayDevice();
                     WaitDevice();
@@ -268,12 +253,12 @@ namespace Xstream
             Program.Delay(delay * 2);
         }
 
-        private void BufferQueueDrainCallback(byte* stream, int len)
+        private void BufferQueueDrainCallback(byte* stream, uint len)
         {
             // this function always holds the mixer lock before being called.
-            uint dequeued = DataQueuePacket.ReadFromDataQueue(_queue, stream, (uint)len);
+            uint dequeued = DataQueuePacket.ReadFromDataQueue(_queue, stream, len);
             stream += dequeued;
-            len -= (int)dequeued;
+            len -= dequeued;
 
             if (len > 0)
             {
@@ -331,7 +316,7 @@ namespace Xstream
             this.nChannels = nChannels;
             this.nSamplesPerSec = nSamplesPerSec;
 
-            nBlockAlign = wBitsPerSample / 8 * nChannels;
+            nBlockAlign = nChannels * (wBitsPerSample / 8);
             nAvgBytesPerSec = nSamplesPerSec * nBlockAlign;
             cbSize = 0;
 
@@ -346,13 +331,18 @@ namespace Xstream
 
     static class SDL_AudioFormat_Extensions
     {
-        public static int AND(this SDL_AudioFormat x, int y) => (int)x & y;
+        static int AUDIO_MASK_BITSIZE = 0xFF;
+        static int AUDIO_MASK_DATATYPE = 1 << 8;
+        static int AUDIO_MASK_ENDIAN = 1 << 12;
+        static int AUDIO_MASK_SIGNED = 1 << 15;
 
-        public static int AUDIO_BITSIZE(this SDL_AudioFormat x) => x.AND(0xFF);
+        static int AND(this SDL_AudioFormat x, int y) => (int)x & y;
 
-        public static bool AUDIO_ISFLOAT(this SDL_AudioFormat x) => x.AND(1 << 8) == 1;
-        public static bool AUDIO_ISBIGENDIAN(this SDL_AudioFormat x) => x.AND(1 << 12) == 1;
-        public static bool AUDIO_ISSIGNED(this SDL_AudioFormat x) => x.AND(1 << 15) == 1;
+        public static int AUDIO_BITSIZE(this SDL_AudioFormat x) => x.AND(AUDIO_MASK_BITSIZE);
+
+        public static bool AUDIO_ISFLOAT(this SDL_AudioFormat x) => x.AND(AUDIO_MASK_DATATYPE) == 1;
+        public static bool AUDIO_ISBIGENDIAN(this SDL_AudioFormat x) => x.AND(AUDIO_MASK_ENDIAN) == 1;
+        public static bool AUDIO_ISSIGNED(this SDL_AudioFormat x) => x.AND(AUDIO_MASK_SIGNED) == 1;
 
         public static bool AUDIO_ISINT(this SDL_AudioFormat x) => !x.AUDIO_ISFLOAT();
         public static bool AUDIO_ISLITTLEENDIAN(this SDL_AudioFormat x) => !x.AUDIO_ISBIGENDIAN();
