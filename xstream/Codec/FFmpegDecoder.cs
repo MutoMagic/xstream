@@ -98,5 +98,10 @@ namespace Xstream.Codec
                 _videoContextInitialized = true;
             }
         }
+
+        public void Start()
+        {
+            _audioHandler.DecodingThread().Start();
+        }
     }
 }

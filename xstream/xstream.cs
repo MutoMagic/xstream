@@ -91,7 +91,18 @@ namespace Xstream
                 StartInputFrameSendingTask();
             }
 
-            //TODO
+            Decoder.Start();
+        }
+
+        protected override void DefWndProc(ref Message m)
+        {
+            base.DefWndProc(ref m);
+
+            if (Decoder.DecodedAudioQueue.Count > 0)
+            {
+                var sample = Decoder.DecodedAudioQueue.Dequeue();
+                _audioRenderer.Update(sample);
+            }
         }
     }
 }

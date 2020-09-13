@@ -163,15 +163,7 @@ namespace Xstream
                 return -1;
             }
 
-            if (length > 0)
-            {
-                lock (_lock)
-                {
-                    return DataQueuePacket.WriteToDataQueue(_queue, data, length);
-                }
-            }
-
-            return 0;
+            return QueueAudio(data, length);
         }
 
         public int Close()
@@ -413,6 +405,19 @@ namespace Xstream
                 // app still needs to close the device to free resources.
                 _enabled = false;
             }
+        }
+
+        public int QueueAudio(byte* data, uint len)
+        {
+            if (len > 0)
+            {
+                lock (_lock)
+                {
+                    return DataQueuePacket.WriteToDataQueue(_queue, data, len);
+                }
+            }
+
+            return 0;
         }
     }
 

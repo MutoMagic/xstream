@@ -1,5 +1,6 @@
 ﻿using FFmpeg.AutoGen;
 using System;
+using System.Threading;
 
 namespace Xstream.Codec
 {
@@ -63,6 +64,12 @@ namespace Xstream.Codec
         /// Sets the resampler parameters.
         /// </summary>
         internal abstract SwrContext* CreateResampler(AVCodecContext* codecContext);
+
+        /// <summary>
+        /// Start decoding thread
+        /// </summary>
+        /// <returns></returns>
+        public abstract Thread DecodingThread();
 
         /// <summary>
         /// Inits the Codec context.
@@ -140,6 +147,35 @@ namespace Xstream.Codec
         public void CreateEncoderContext()
         {
             CreateContext(encoder: true);
+        }
+
+        /// <summary>
+        /// Send an encoded packet / frame in ffmpeg decoding queue.
+        /// </summary>
+        /// <returns>Return value of avcodec_send_packet: 0 on success, -1 on failure</returns>
+        /// <param name="data">Encoded Data blob</param>
+        internal int EnqueuePacketForDecoding(byte[] data)
+        {
+            if (!this.IsDecoder)
+            {
+                Console.WriteLine("QueuePacketForDecoding: Context is not initialized for decoding");
+                return -1;
+            }
+            int ret;
+            fixed (byte* pData = data)
+            {
+                pPacket->data = pData;
+                pPacket->size = data.Length;
+
+                ret = ffmpeg.avcodec_send_packet(pCodecContext, pPacket);
+            }
+            if (ret < 0)
+            {
+                Console.WriteLine($"Error: Code: {ret}, Msg:{FFmpegHelper.av_strerror(ret)}");
+            }
+
+            ffmpeg.av_packet_unref(pPacket);
+            return 0;
         }
 
         public void Dispose()

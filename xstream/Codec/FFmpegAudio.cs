@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace Xstream.Codec
 {
@@ -126,6 +127,96 @@ namespace Xstream.Codec
 
             ffmpeg.swr_init(resampler);
             return resampler;
+        }
+
+        public override Thread DecodingThread()
+        {
+            return new Thread(() =>
+            {
+                while (true)
+                {
+                    // Dequeue decoded Frames
+                    int ret = DequeueDecodedFrame(out byte[] audioSampleData);
+                    if (ret == 0)
+                    {
+                        SampleDecoded?.Invoke(new PCMSample(audioSampleData));
+                    }
+
+                    // Enqueue encoded packet
+                    AACFrame frame = null;
+                    try
+                    {
+                        if (encodedDataQueue.Count > 0)
+                        {
+                            frame = encodedDataQueue.Dequeue();
+                            EnqueuePacketForDecoding(frame.RawData);
+                        }
+                    }
+                    catch (InvalidOperationException e)
+                    {
+                        Debug.WriteLine($"FFmpegAudio Loop: {e}");
+                    }
+                }
+            });
+        }
+
+        /// <summary>
+        /// Gets the decoded and converted audio frame from ffmpeg queue (PACKED FORMAT / Float32)
+        /// </summary>
+        /// <returns>The decoded audio frame.</returns>
+        /// <param name="decodedFrame">OUT: Decoded Audio frame.</param>
+        int DequeueDecodedFrame(out byte[] frameData)
+        {
+            frameData = null;
+
+            if (!IsDecoder)
+            {
+                Debug.WriteLine("GetDecodedAudioFrame: Context is not initialized for decoding");
+                return -1;
+            }
+            int ret;
+            ret = ffmpeg.avcodec_receive_frame(pCodecContext, pDecodedFrame);
+            if (ret < 0)
+            {
+                ffmpeg.av_frame_unref(pDecodedFrame);
+                return ret;
+            }
+
+            if (doResample)
+            {
+                byte* convertedData = null;
+                ret = ffmpeg.av_samples_alloc(
+                                    &convertedData,
+                                    null,
+                                    pDecodedFrame->channels,
+                                    pDecodedFrame->nb_samples,
+                                    avTargetSampleFormat,
+                                    1);
+                if (ret < 0)
+                {
+                    Debug.WriteLine("Could not allocate audio buffer");
+                    ffmpeg.av_frame_unref(pDecodedFrame);
+                    return ret;
+                }
+
+                ffmpeg.swr_convert(pResampler, &convertedData, pDecodedFrame->nb_samples,
+                                   pDecodedFrame->extended_data, pDecodedFrame->nb_samples);
+
+                int bufSize = ffmpeg.av_samples_get_buffer_size(null, pDecodedFrame->channels,
+                                                                      pDecodedFrame->nb_samples,
+                                                                      avTargetSampleFormat, 1);
+
+                frameData = new byte[bufSize];
+                Marshal.Copy((IntPtr)convertedData, frameData, 0, frameData.Length);
+            }
+            else
+            {
+                // TODO
+                throw new NotImplementedException("Can we even deal with non-converted audio data?");
+            }
+
+            ffmpeg.av_frame_unref(pDecodedFrame);
+            return 0;
         }
     }
 }
