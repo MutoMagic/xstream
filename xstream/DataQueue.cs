@@ -191,6 +191,15 @@ namespace Xstream
 
             return (uint)(ptr - buf);
         }
+
+        public static void FreeDataQueue(DataQueue queue)
+        {
+            if (queue != null)
+            {
+                FreeDataQueueList(queue.head);
+                FreeDataQueueList(queue.pool);
+            }
+        }
     }
 
     class DataQueue
