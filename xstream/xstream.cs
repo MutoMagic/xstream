@@ -97,9 +97,9 @@ namespace Xstream
             looping = true;
         }
 
-        protected override void DefWndProc(ref Message m)
+        protected override void WndProc(ref Message m)
         {
-            base.DefWndProc(ref m);
+            base.WndProc(ref m);
 
             if (!looping)
                 return;
