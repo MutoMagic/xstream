@@ -19,7 +19,7 @@ namespace Xstream
         {
             internal GCHandle handle;
 
-            internal object mutex;
+            internal AutoResetEvent semaphore;
             internal byte* mixbuf;
             internal int mixlen;
             internal byte* nextbuf;
@@ -47,7 +47,7 @@ namespace Xstream
             {
                 // Just signal the SDL audio thread and get out of XAudio2's way.
                 DxAudio device = (DxAudio)GCHandle.FromIntPtr(context).Target;
-                Monitor.Exit(device._hidden.mutex);
+                device._hidden.semaphore.Set();
             }
 
             public void OnBufferStart(IntPtr context) { }
@@ -215,7 +215,7 @@ namespace Xstream
             // Initialize all variables that we clean on shutdown
             _hidden = new PrivateAudioData();
             _hidden.handle = GCHandle.Alloc(this);
-            _hidden.mutex = new object();
+            _hidden.semaphore = new AutoResetEvent(false);
 
             _bufferSize = _waveFormat.nBlockAlign * _samples;
             _bufferSize2 = _bufferSize * 2;
@@ -352,7 +352,7 @@ namespace Xstream
         {
             if (_enabled)
             {
-                Monitor.Enter(_hidden.mutex);
+                _hidden.semaphore.WaitOne();
             }
         }
 
