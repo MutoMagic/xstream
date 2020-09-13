@@ -303,6 +303,8 @@ namespace Xstream
                 }
             }
 
+            _sourceVoice?.Discontinuity();
+
             // Wait for the audio to drain.
             Program.Delay(delay * 2);
         }
@@ -348,7 +350,7 @@ namespace Xstream
             {
                 _sourceVoice.SubmitSourceBuffer(buffer, null);
             }
-            catch(SharpDXException e)
+            catch (SharpDXException e)
             {
                 if (e.ResultCode.Code == ResultCode.DeviceInvalidated.Code)
                 {
