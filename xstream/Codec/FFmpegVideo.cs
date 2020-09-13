@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace Xstream.Codec
 {
@@ -134,6 +135,11 @@ namespace Xstream.Codec
 
             ffmpeg.swr_init(resampler);
             return resampler;
+        }
+
+        public override Thread DecodingThread()
+        {
+            throw new NotImplementedException();
         }
     }
 }
