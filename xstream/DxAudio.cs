@@ -26,6 +26,8 @@ namespace Xstream
 
             public void Dispose()
             {
+                semaphore.Close();
+
                 if (mixbuf != null)
                 {
                     Marshal.FreeHGlobal((IntPtr)mixbuf);
@@ -210,7 +212,11 @@ namespace Xstream
             _masteringVoice = new MasteringVoice(_xaudio2, XAUDIO2_DEFAULT_CHANNELS, _sampleRate, _dev);
 
             _waveFormat = new WAVEFORMATEX(SDL_AudioFormat.AUDIO_F32, _channels, _sampleRate);
-            _sourceVoice = new SourceVoice(_xaudio2, _waveFormat.local, VoiceFlags.None, 1.0f, Callbacks.Instance);
+            _sourceVoice = new SourceVoice(_xaudio2
+                , _waveFormat.local
+                , VoiceFlags.NoSampleRateConversion | VoiceFlags.NoPitch
+                , 1.0f
+                , Callbacks.Instance);
 
             // Initialize all variables that we clean on shutdown
             _hidden = new PrivateAudioData();
@@ -429,6 +435,23 @@ namespace Xstream
 
         public WAVEFORMATEX(SDL_AudioFormat format, int nChannels, int nSamplesPerSec)
         {
+            bool valid_format = false;
+
+            switch (format)
+            {
+                case SDL_AudioFormat.AUDIO_U8:
+                case SDL_AudioFormat.AUDIO_S16:
+                case SDL_AudioFormat.AUDIO_S32:
+                case SDL_AudioFormat.AUDIO_F32:
+                    valid_format = true;
+                    break;
+            }
+
+            if (!valid_format)
+            {
+                throw new NotSupportedException("XAudio2: Unsupported audio format");
+            }
+
             switch (format)
             {
                 case SDL_AudioFormat.AUDIO_U8:
