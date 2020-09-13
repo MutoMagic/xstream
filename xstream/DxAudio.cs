@@ -37,18 +37,11 @@ namespace Xstream
             }
         }
 
-        sealed class Callbacks : VoiceCallback
+        sealed class Callbacks : CallbackBase, VoiceCallback
         {
             Callbacks() { }
 
             public static readonly Callbacks Instance = new Callbacks();
-
-            public IDisposable Shadow { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-
-            public void Dispose()
-            {
-                throw new NotImplementedException();
-            }
 
             public void OnBufferEnd(IntPtr context)
             {

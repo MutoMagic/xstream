@@ -21,6 +21,7 @@ namespace Xstream
         bool _useController;
 
         GamestreamConfiguration _config;
+        bool looping;
 
         public Xstream(bool useController, GamestreamConfiguration config)
         {
@@ -86,17 +87,22 @@ namespace Xstream
 
             _audioRenderer.Initialize(1024);
 
+            Decoder.Start();
+
             if (_useController)
             {
                 StartInputFrameSendingTask();
             }
 
-            Decoder.Start();
+            looping = true;
         }
 
         protected override void DefWndProc(ref Message m)
         {
             base.DefWndProc(ref m);
+
+            if (!looping)
+                return;
 
             if (Decoder.DecodedAudioQueue.Count > 0)
             {
