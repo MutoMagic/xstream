@@ -1,6 +1,9 @@
-﻿using SmartGlass.Common;
+﻿using SharpDX;
+using SharpDX.Multimedia;
+using SmartGlass.Common;
 using System;
 using System.Drawing;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -85,6 +88,15 @@ namespace Xstream
             if (_useController && !Input.Initialize(this))
                 throw new InvalidOperationException("Failed to init DirectX Input");
 
+            string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            SoundStream stream = new SoundStream(File.OpenRead($"{desktop}\\[SHANA]日本群星 (オムニバス) - 恋ゴコロ.wav"));
+            _audioRenderer = new DxAudio(stream.Format.SampleRate, stream.Format.Channels);
+            DataStream data = stream.ToDataStream();
+            stream.Close();
+            _numToRead = (int)data.Length;
+            _wav = data.ReadRange<byte>(_numToRead);
+            data.Close();
+
             _audioRenderer.Initialize(1024);
 
             //Decoder.Start();
@@ -97,12 +109,25 @@ namespace Xstream
             looping = true;
         }
 
+        byte[] _wav;
+        int _numToRead;
+        int _numRead;
+
         protected override void WndProc(ref Message m)
         {
             base.WndProc(ref m);
 
             if (!looping)
                 return;
+
+            if (_numToRead > 0)
+            {
+                byte[] d = new byte[_numToRead < 1024 ? _numToRead : 1024];
+                Array.Copy(_wav, _numRead, d, 0, d.Length);
+                _numRead += d.Length;
+                _numToRead -= d.Length;
+                _audioRenderer.Update(new PCMSample(d));
+            }
 
             //if (Decoder.DecodedAudioQueue.Count > 0)
             //{

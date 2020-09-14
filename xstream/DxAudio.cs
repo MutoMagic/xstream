@@ -411,7 +411,7 @@ namespace Xstream
             }
         }
 
-        public int QueueAudio(byte* data, uint len)
+        private int QueueAudio(byte* data, uint len)
         {
             if (len > 0)
             {
