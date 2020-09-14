@@ -225,13 +225,20 @@ namespace Xstream
                 }
             }
             _xaudio2.Dispose();
+
             _xaudio2 = new XAudio2(XAudio2Flags.None, ProcessorSpecifier.DefaultProcessor);
 
-            // The mastering voices encapsulates an audio device.
-            // It is the ultimate destination for all audio that passes through an audio graph.
+            /*
+             * We use XAUDIO2_DEFAULT_CHANNELS instead of _channels. On
+             * Xbox360, this means 5.1 output, but on Windows, it means "figure out
+             * what the system has." It might be preferable to let XAudio2 blast
+             * stereo output to appropriate surround sound configurations
+             * instead of clamping to 2 channels, even though we'll configure the
+             * Source Voice for whatever number of channels you supply.
+             */
             _masteringVoice = new MasteringVoice(_xaudio2, XAUDIO2_DEFAULT_CHANNELS, _sampleRate, _dev);
 
-            _waveFormat = new WAVEFORMATEX(SDL_AudioFormat.AUDIO_F32, _channels, _sampleRate);
+            _waveFormat = new WAVEFORMATEX(format, _channels, _sampleRate);
             _sourceVoice = new SourceVoice(_xaudio2
                 , _waveFormat.local
                 , VoiceFlags.NoSampleRateConversion | VoiceFlags.NoPitch
@@ -279,7 +286,6 @@ namespace Xstream
                      * a regular frequency, in case they depend on that
                      * for timing or progress. They can use hotplug
                      * now to know if the device failed.
-                     * Streaming playback uses work_buffer, too.
                      */
                     data = null;
                 }
