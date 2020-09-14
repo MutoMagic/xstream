@@ -2,7 +2,6 @@
 using SharpDX.Multimedia;
 using SmartGlass.Common;
 using System;
-using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Threading;
@@ -92,11 +91,10 @@ namespace Xstream
             string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
             SoundStream stream = new SoundStream(File.OpenRead($"{desktop}\\[SHANA]日本群星 (オムニバス) - 恋ゴコロ.wav"));
             _audioRenderer = new DxAudio(stream.Format.SampleRate, stream.Format.Channels);
-            DataStream data = stream.ToDataStream();
+            _data = stream.ToDataStream();
             stream.Close();
-            _numToRead = (int)data.Length;
-            _wav = data.ReadRange<byte>(_numToRead);
-            data.Close();
+            _numToRead = (int)_data.Length;
+            //data.Close();
 
             _audioRenderer.Initialize(1024);
 
@@ -110,10 +108,9 @@ namespace Xstream
             looping = true;
         }
 
-        [DebuggerDisplay("{ToString, nq}")]
-        byte[] _wav;
+        DataStream _data;
         int _numToRead;
-        int _numRead;
+        int _numRead = 0;
 
         protected override void WndProc(ref Message m)
         {
@@ -130,8 +127,7 @@ namespace Xstream
 
             if (_numToRead > 0)
             {
-                byte[] d = new byte[_numToRead < 1024 ? _numToRead : 1024];
-                Array.Copy(_wav, _numRead, d, 0, d.Length);
+                byte[] d = _data.ReadRange<byte>(_numToRead < 1024 ? _numToRead : 1024);
                 _numRead += d.Length;
                 _numToRead -= d.Length;
                 _audioRenderer.Update(new PCMSample(d));
