@@ -122,7 +122,7 @@ namespace Xstream
             _paused = true;
             _enabled = true;
 
-            OpenDevice();
+            OpenDevice(SDL_AudioFormat.AUDIO_F32);
 
             // pool a few packets to start. Enough for two callbacks.
             _queue = DataQueuePacket.NewDataQueue(SDL_AUDIOBUFFERQUEUE_PACKETLEN, (uint)_bufferSize2);
@@ -189,21 +189,41 @@ namespace Xstream
             return 0;
         }
 
-        private void OpenDevice()
+        private void OpenDevice(SDL_AudioFormat format)
         {
-            _xaudio2 = new XAudio2(XAudio2Version.Version27);
+            SDL_AudioFormat test_format = format.FirstAudioFormat();
+            bool valid_format = false;
 
+            while (!valid_format && test_format != 0)
+            {
+                switch (test_format)
+                {
+                    case SDL_AudioFormat.AUDIO_U8:
+                    case SDL_AudioFormat.AUDIO_S16:
+                    case SDL_AudioFormat.AUDIO_S32:
+                    case SDL_AudioFormat.AUDIO_F32:
+                        format = test_format;
+                        valid_format = true;
+                        break;
+                }
+                test_format = format.NextAudioFormat();
+            }
+
+            if (!valid_format)
+            {
+                throw new NotSupportedException("XAudio2: Unsupported audio format");
+            }
+
+            _xaudio2 = new XAudio2(XAudio2Version.Version27);
             for (int i = 0; i < _xaudio2.DeviceCount; i++)
             {
                 DeviceDetails device = _xaudio2.GetDeviceDetails(i);
-
                 if (device.Role == DeviceRole.GlobalDefaultDevice)
                 {
                     _dev = device.DeviceID;
                     break;
                 }
             }
-
             _xaudio2.Dispose();
             _xaudio2 = new XAudio2(XAudio2Flags.None, ProcessorSpecifier.DefaultProcessor);
 
@@ -435,23 +455,6 @@ namespace Xstream
 
         public WAVEFORMATEX(SDL_AudioFormat format, int nChannels, int nSamplesPerSec)
         {
-            bool valid_format = false;
-
-            switch (format)
-            {
-                case SDL_AudioFormat.AUDIO_U8:
-                case SDL_AudioFormat.AUDIO_S16:
-                case SDL_AudioFormat.AUDIO_S32:
-                case SDL_AudioFormat.AUDIO_F32:
-                    valid_format = true;
-                    break;
-            }
-
-            if (!valid_format)
-            {
-                throw new NotSupportedException("XAudio2: Unsupported audio format");
-            }
-
             switch (format)
             {
                 case SDL_AudioFormat.AUDIO_U8:
@@ -498,6 +501,45 @@ namespace Xstream
         public static bool AUDIO_ISINT(this SDL_AudioFormat x) => !x.AUDIO_ISFLOAT();
         public static bool AUDIO_ISLITTLEENDIAN(this SDL_AudioFormat x) => !x.AUDIO_ISBIGENDIAN();
         public static bool AUDIO_ISUNSIGNED(this SDL_AudioFormat x) => !x.AUDIO_ISSIGNED();
+
+        static int _formatIdx;
+        static int _formatIdxSub;
+        static SDL_AudioFormat[][] _formatList = new SDL_AudioFormat[][] {
+            new SDL_AudioFormat[]{SDL_AudioFormat.AUDIO_U8, SDL_AudioFormat.AUDIO_S8, SDL_AudioFormat.AUDIO_S16LSB, SDL_AudioFormat.AUDIO_S16MSB, SDL_AudioFormat.AUDIO_U16LSB,SDL_AudioFormat.AUDIO_U16MSB, SDL_AudioFormat.AUDIO_S32LSB, SDL_AudioFormat.AUDIO_S32MSB, SDL_AudioFormat.AUDIO_F32LSB, SDL_AudioFormat.AUDIO_F32MSB},
+            new SDL_AudioFormat[]{SDL_AudioFormat.AUDIO_S8, SDL_AudioFormat.AUDIO_U8, SDL_AudioFormat.AUDIO_S16LSB, SDL_AudioFormat.AUDIO_S16MSB, SDL_AudioFormat.AUDIO_U16LSB,SDL_AudioFormat.AUDIO_U16MSB, SDL_AudioFormat.AUDIO_S32LSB, SDL_AudioFormat.AUDIO_S32MSB, SDL_AudioFormat.AUDIO_F32LSB, SDL_AudioFormat.AUDIO_F32MSB},
+            new SDL_AudioFormat[]{SDL_AudioFormat.AUDIO_S16LSB, SDL_AudioFormat.AUDIO_S16MSB, SDL_AudioFormat.AUDIO_U16LSB, SDL_AudioFormat.AUDIO_U16MSB, SDL_AudioFormat.AUDIO_S32LSB,SDL_AudioFormat.AUDIO_S32MSB, SDL_AudioFormat.AUDIO_F32LSB, SDL_AudioFormat.AUDIO_F32MSB, SDL_AudioFormat.AUDIO_U8, SDL_AudioFormat.AUDIO_S8},
+            new SDL_AudioFormat[]{SDL_AudioFormat.AUDIO_S16MSB, SDL_AudioFormat.AUDIO_S16LSB, SDL_AudioFormat.AUDIO_U16MSB, SDL_AudioFormat.AUDIO_U16LSB, SDL_AudioFormat.AUDIO_S32MSB,SDL_AudioFormat.AUDIO_S32LSB, SDL_AudioFormat.AUDIO_F32MSB, SDL_AudioFormat.AUDIO_F32LSB, SDL_AudioFormat.AUDIO_U8,SDL_AudioFormat. AUDIO_S8},
+            new SDL_AudioFormat[]{SDL_AudioFormat.AUDIO_U16LSB,SDL_AudioFormat. AUDIO_U16MSB, SDL_AudioFormat.AUDIO_S16LSB,SDL_AudioFormat. AUDIO_S16MSB, SDL_AudioFormat.AUDIO_S32LSB,SDL_AudioFormat.AUDIO_S32MSB, SDL_AudioFormat.AUDIO_F32LSB, SDL_AudioFormat.AUDIO_F32MSB, SDL_AudioFormat.AUDIO_U8, SDL_AudioFormat.AUDIO_S8},
+            new SDL_AudioFormat[]{SDL_AudioFormat.AUDIO_U16MSB, SDL_AudioFormat.AUDIO_U16LSB, SDL_AudioFormat.AUDIO_S16MSB, SDL_AudioFormat.AUDIO_S16LSB, SDL_AudioFormat.AUDIO_S32MSB,SDL_AudioFormat.AUDIO_S32LSB, SDL_AudioFormat.AUDIO_F32MSB, SDL_AudioFormat.AUDIO_F32LSB, SDL_AudioFormat.AUDIO_U8, SDL_AudioFormat.AUDIO_S8},
+            new SDL_AudioFormat[]{SDL_AudioFormat.AUDIO_S32LSB, SDL_AudioFormat.AUDIO_S32MSB, SDL_AudioFormat.AUDIO_F32LSB, SDL_AudioFormat.AUDIO_F32MSB, SDL_AudioFormat.AUDIO_S16LSB,SDL_AudioFormat.AUDIO_S16MSB,SDL_AudioFormat.AUDIO_U16LSB, SDL_AudioFormat.AUDIO_U16MSB, SDL_AudioFormat.AUDIO_U8, SDL_AudioFormat.AUDIO_S8},
+            new SDL_AudioFormat[]{SDL_AudioFormat.AUDIO_S32MSB, SDL_AudioFormat.AUDIO_S32LSB, SDL_AudioFormat.AUDIO_F32MSB, SDL_AudioFormat.AUDIO_F32LSB, SDL_AudioFormat.AUDIO_S16MSB,SDL_AudioFormat.AUDIO_S16LSB, SDL_AudioFormat.AUDIO_U16MSB, SDL_AudioFormat.AUDIO_U16LSB, SDL_AudioFormat.AUDIO_U8, SDL_AudioFormat.AUDIO_S8},
+            new SDL_AudioFormat[]{SDL_AudioFormat.AUDIO_F32LSB, SDL_AudioFormat.AUDIO_F32MSB, SDL_AudioFormat.AUDIO_S32LSB, SDL_AudioFormat.AUDIO_S32MSB, SDL_AudioFormat.AUDIO_S16LSB,SDL_AudioFormat.AUDIO_S16MSB, SDL_AudioFormat.AUDIO_U16LSB, SDL_AudioFormat.AUDIO_U16MSB, SDL_AudioFormat.AUDIO_U8, SDL_AudioFormat.AUDIO_S8},
+            new SDL_AudioFormat[]{SDL_AudioFormat.AUDIO_F32MSB, SDL_AudioFormat.AUDIO_F32LSB, SDL_AudioFormat.AUDIO_S32MSB, SDL_AudioFormat.AUDIO_S32LSB, SDL_AudioFormat.AUDIO_S16MSB,SDL_AudioFormat.AUDIO_S16LSB, SDL_AudioFormat.AUDIO_U16MSB, SDL_AudioFormat.AUDIO_U16LSB,SDL_AudioFormat. AUDIO_U8, SDL_AudioFormat.AUDIO_S8},
+        };
+
+        public static SDL_AudioFormat FirstAudioFormat(this SDL_AudioFormat format)
+        {
+            for (_formatIdx = 0; _formatIdx < _formatList.Length; ++_formatIdx)
+            {
+                if (_formatList[_formatIdx][0] == format)
+                {
+                    break;
+                }
+            }
+            _formatIdxSub = 0;
+            return NextAudioFormat();
+        }
+
+        public static SDL_AudioFormat NextAudioFormat(this SDL_AudioFormat useless) => NextAudioFormat();
+
+        static SDL_AudioFormat NextAudioFormat()
+        {
+            if (_formatIdx == _formatList.Length || _formatIdxSub == _formatList[0].Length)
+            {
+                return 0;
+            }
+            return _formatList[_formatIdx][_formatIdxSub++];
+        }
     }
 
     enum SDL_AudioFormat
