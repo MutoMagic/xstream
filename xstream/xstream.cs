@@ -94,7 +94,6 @@ namespace Xstream
             _data = stream.ToDataStream();
             stream.Close();
             _numToRead = (int)_data.Length;
-            //data.Close();
 
             _audioRenderer.Initialize(1024);
 
@@ -110,7 +109,6 @@ namespace Xstream
 
         DataStream _data;
         int _numToRead;
-        int _numRead = 0;
 
         protected override void WndProc(ref Message m)
         {
@@ -128,9 +126,12 @@ namespace Xstream
             if (_numToRead > 0)
             {
                 byte[] d = _data.ReadRange<byte>(_numToRead < 1024 ? _numToRead : 1024);
-                _numRead += d.Length;
                 _numToRead -= d.Length;
                 _audioRenderer.Update(new PCMSample(d));
+            }
+            else
+            {
+                _data.Dispose();
             }
 
         end:
