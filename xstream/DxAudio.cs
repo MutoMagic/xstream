@@ -427,6 +427,18 @@ namespace Xstream
 
     struct WAVEFORMATEX
     {
+        [StructLayout(LayoutKind.Sequential)]
+        struct WAVEFORMATEX_C
+        {
+            public ushort wFormatTag;
+            public ushort nChannels;
+            public uint nSamplesPerSec;
+            public uint nAvgBytesPerSec;
+            public ushort nBlockAlign;
+            public ushort wBitsPerSample;
+            public ushort cbSize;
+        }
+
         public WaveFormat Local
         {
             get => WaveFormat.CreateCustomFormat(wFormatTag
@@ -489,7 +501,7 @@ namespace Xstream
 
             nBlockAlign = nChannels * (wBitsPerSample / 8);
             nAvgBytesPerSec = nSamplesPerSec * nBlockAlign;
-            cbSize = 22;
+            cbSize = Marshal.SizeOf<WAVEFORMATEX_C>();
         }
     }
 
