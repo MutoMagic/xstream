@@ -1,9 +1,6 @@
-﻿using SharpDX;
-using SharpDX.Multimedia;
-using SmartGlass.Common;
+﻿using SmartGlass.Common;
 using System;
 using System.Drawing;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -45,8 +42,8 @@ namespace Xstream
 
             _cancellationTokenSource = new CancellationTokenSource();
 
-            //_audioRenderer = new DxAudio(
-            //    (int)Program.AudioFormat.SampleRate, (int)Program.AudioFormat.Channels);
+            _audioRenderer = new DxAudio(
+                (int)Program.AudioFormat.SampleRate, (int)Program.AudioFormat.Channels);
             _videoRenderer = new DxVideo(
                 (int)Program.VideoFormat.Width, (int)Program.VideoFormat.Height, this);
 
@@ -88,16 +85,9 @@ namespace Xstream
             if (_useController && !Input.Initialize(this))
                 throw new InvalidOperationException("Failed to init DirectX Input");
 
-            string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-            SoundStream stream = new SoundStream(File.OpenRead($"{desktop}\\[SHANA]日本群星 (オムニバス) - 恋ゴコロ.wav"));
-            _audioRenderer = new DxAudio(stream.Format.SampleRate, stream.Format.Channels);
-            _data = stream.ToDataStream();
-            stream.Close();
-            _numToRead = (int)_data.Length;
-
             _audioRenderer.Initialize(1024);
 
-            //Decoder.Start();
+            Decoder.Start();
 
             if (_useController)
             {
@@ -105,21 +95,7 @@ namespace Xstream
             }
 
             looping = true;
-
-            //Task.Run(() =>
-            //{
-            //    while (_numToRead > 0)
-            //    {
-            //        byte[] d = _data.ReadRange<byte>(_numToRead < 1024 ? _numToRead : 1024);
-            //        _numToRead -= d.Length;
-            //        _audioRenderer.Update(new PCMSample(d));
-            //    }
-            //    _data.Dispose();
-            //});
         }
-
-        public static DataStream _data;
-        public static int _numToRead;
 
         protected override void WndProc(ref Message m)
         {
@@ -128,15 +104,10 @@ namespace Xstream
                 goto end;
             }
 
-            //if (Decoder.DecodedAudioQueue.Count > 0)
-            //{
-            //    var sample = Decoder.DecodedAudioQueue.Dequeue();
-            //    _audioRenderer.Update(sample);
-            //}
-
-            if (_numToRead > 0)
+            if (Decoder.DecodedAudioQueue.Count > 0)
             {
-                // nop
+                var sample = Decoder.DecodedAudioQueue.Dequeue();
+                _audioRenderer.Update(sample);
             }
 
         end:

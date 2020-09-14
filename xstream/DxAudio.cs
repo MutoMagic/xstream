@@ -308,18 +308,7 @@ namespace Xstream
         private void BufferQueueDrainCallback(byte* stream, uint len)
         {
             // this function always holds the mixer lock before being called.
-            //uint dequeued = DataQueuePacket.ReadFromDataQueue(_queue, stream, len);
-            uint dequeued = Math.Min((uint)Xstream._numToRead, len);
-
-            if (Xstream._numToRead > 0)
-            {
-                byte[] d = Xstream._data.ReadRange<byte>((int)dequeued);
-                Xstream._numToRead -= d.Length;
-                fixed (byte* p = d)
-                {
-                    Program.CopyMemory(stream, p, dequeued);
-                }
-            }
+            uint dequeued = DataQueuePacket.ReadFromDataQueue(_queue, stream, len);
 
             stream += dequeued;
             len -= dequeued;
