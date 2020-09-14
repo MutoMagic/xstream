@@ -110,17 +110,23 @@ namespace Xstream
             looping = true;
         }
 
-        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
+        [DebuggerDisplay("{ToString, nq}")]
         byte[] _wav;
         int _numToRead;
         int _numRead;
 
         protected override void WndProc(ref Message m)
         {
-            base.WndProc(ref m);
-
             if (!looping)
-                return;
+            {
+                goto end;
+            }
+
+            //if (Decoder.DecodedAudioQueue.Count > 0)
+            //{
+            //    var sample = Decoder.DecodedAudioQueue.Dequeue();
+            //    _audioRenderer.Update(sample);
+            //}
 
             if (_numToRead > 0)
             {
@@ -131,11 +137,9 @@ namespace Xstream
                 _audioRenderer.Update(new PCMSample(d));
             }
 
-            //if (Decoder.DecodedAudioQueue.Count > 0)
-            //{
-            //    var sample = Decoder.DecodedAudioQueue.Dequeue();
-            //    _audioRenderer.Update(sample);
-            //}
+        end:
+
+            base.WndProc(ref m);
         }
     }
 }
