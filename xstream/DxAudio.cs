@@ -122,7 +122,7 @@ namespace Xstream
             _paused = true;
             _enabled = true;
 
-            OpenDevice(SDL_AudioFormat.AUDIO_F32);
+            OpenDevice();
 
             // pool a few packets to start. Enough for two callbacks.
             _queue = DataQueuePacket.NewDataQueue(SDL_AUDIOBUFFERQUEUE_PACKETLEN, (uint)_bufferSize2);
@@ -189,43 +189,22 @@ namespace Xstream
             return 0;
         }
 
-        private void OpenDevice(SDL_AudioFormat format)
+        private void OpenDevice()
         {
-            SDL_AudioFormat test_format = format.FirstAudioFormat();
-            bool valid_format = false;
-
-            while (!valid_format && test_format != 0)
-            {
-                switch (test_format)
-                {
-                    case SDL_AudioFormat.AUDIO_U8:
-                    case SDL_AudioFormat.AUDIO_S16:
-                    case SDL_AudioFormat.AUDIO_S32:
-                    case SDL_AudioFormat.AUDIO_F32:
-                        format = test_format;
-                        valid_format = true;
-                        break;
-                }
-                test_format = format.NextAudioFormat();
-            }
-
-            if (!valid_format)
-            {
-                throw new NotSupportedException("XAudio2: Unsupported audio format");
-            }
-
             _xaudio2 = new XAudio2(XAudio2Version.Version27);
+
             for (int i = 0; i < _xaudio2.DeviceCount; i++)
             {
                 DeviceDetails device = _xaudio2.GetDeviceDetails(i);
+
                 if (device.Role == DeviceRole.GlobalDefaultDevice)
                 {
                     _dev = device.DeviceID;
                     break;
                 }
             }
-            _xaudio2.Dispose();
 
+            _xaudio2.Dispose();
             _xaudio2 = new XAudio2(XAudio2Flags.None, ProcessorSpecifier.DefaultProcessor);
 
             /*
@@ -238,7 +217,7 @@ namespace Xstream
              */
             _masteringVoice = new MasteringVoice(_xaudio2, XAUDIO2_DEFAULT_CHANNELS, _sampleRate, _dev);
 
-            _waveFormat = new WAVEFORMATEX(format, _channels, _sampleRate);
+            _waveFormat = new WAVEFORMATEX(SDL_AudioFormat.AUDIO_F32, _channels, _sampleRate);
             _sourceVoice = new SourceVoice(_xaudio2
                 , _waveFormat.local
                 , VoiceFlags.NoSampleRateConversion | VoiceFlags.NoPitch
@@ -461,6 +440,29 @@ namespace Xstream
 
         public WAVEFORMATEX(SDL_AudioFormat format, int nChannels, int nSamplesPerSec)
         {
+            SDL_AudioFormat test_format = format.FirstAudioFormat();
+            bool valid_format = false;
+
+            while (!valid_format && test_format != 0)
+            {
+                switch (test_format)
+                {
+                    case SDL_AudioFormat.AUDIO_U8:
+                    case SDL_AudioFormat.AUDIO_S16:
+                    case SDL_AudioFormat.AUDIO_S32:
+                    case SDL_AudioFormat.AUDIO_F32:
+                        format = test_format;
+                        valid_format = true;
+                        break;
+                }
+                test_format = format.NextAudioFormat();
+            }
+
+            if (!valid_format)
+            {
+                throw new NotSupportedException("XAudio2: Unsupported audio format");
+            }
+
             switch (format)
             {
                 case SDL_AudioFormat.AUDIO_U8:
