@@ -1,5 +1,4 @@
-﻿using SharpDX.Multimedia;
-using SmartGlass.Common;
+﻿using SmartGlass.Common;
 using System;
 using System.Drawing;
 using System.Threading;
@@ -97,8 +96,6 @@ namespace Xstream
 
             looping = true;
         }
-
-        SoundStream _stream;
 
         protected override void WndProc(ref Message m)
         {
