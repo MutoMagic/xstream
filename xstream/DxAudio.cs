@@ -219,7 +219,7 @@ namespace Xstream
 
             _waveFormat = new WAVEFORMATEX(SDL_AudioFormat.AUDIO_F32, _channels, _sampleRate);
             _sourceVoice = new SourceVoice(_xaudio2
-                , _waveFormat.local
+                , _waveFormat.Local
                 , VoiceFlags.NoSampleRateConversion | VoiceFlags.NoPitch
                 , 1.0f
                 , Callbacks.Instance);
@@ -236,7 +236,7 @@ namespace Xstream
             _hidden.mixlen = _bufferSize;
             _hidden.mixbuf = (byte*)Marshal.AllocHGlobal(_bufferSize2);
             _hidden.nextbuf = _hidden.mixbuf;
-            Program.SetMemory(_hidden.mixbuf, _waveFormat.silence, (uint)_bufferSize2);
+            Program.SetMemory(_hidden.mixbuf, _waveFormat.Silence, (uint)_bufferSize2);
 
             _xaudio2.StartEngine();
             _sourceVoice.Start(XAUDIO2_COMMIT_NOW);
@@ -278,7 +278,7 @@ namespace Xstream
                 {
                     if (_paused)
                     {
-                        Program.SetMemory(data, _waveFormat.silence, data_len);
+                        Program.SetMemory(data, _waveFormat.Silence, data_len);
                     }
                     else
                     {
@@ -315,7 +315,7 @@ namespace Xstream
             if (len > 0)
             {
                 // fill any remaining space in the stream with silence.
-                Program.SetMemory(stream, _waveFormat.silence, len);
+                Program.SetMemory(stream, _waveFormat.Silence, len);
             }
         }
 
@@ -427,7 +427,7 @@ namespace Xstream
 
     struct WAVEFORMATEX
     {
-        public WaveFormat local
+        public WaveFormat Local
         {
             get => WaveFormat.CreateCustomFormat(wFormatTag
                 , nSamplesPerSec
@@ -436,7 +436,8 @@ namespace Xstream
                 , nBlockAlign
                 , wBitsPerSample);
         }
-        public int silence;
+
+        public int Silence;
 
         public WaveFormatEncoding wFormatTag;
         public int nChannels;
@@ -474,10 +475,10 @@ namespace Xstream
             switch (format)
             {
                 case SDL_AudioFormat.AUDIO_U8:
-                    silence = 0x80;
+                    Silence = 0x80;
                     break;
                 default:
-                    silence = 0x00;
+                    Silence = 0x00;
                     break;
             }
 
@@ -503,9 +504,9 @@ namespace Xstream
 
         public static int AUDIO_BITSIZE(this SDL_AudioFormat x) => x.AND(AUDIO_MASK_BITSIZE);
 
-        public static bool AUDIO_ISFLOAT(this SDL_AudioFormat x) => x.AND(AUDIO_MASK_DATATYPE) != 1;
-        public static bool AUDIO_ISBIGENDIAN(this SDL_AudioFormat x) => x.AND(AUDIO_MASK_ENDIAN) != 1;
-        public static bool AUDIO_ISSIGNED(this SDL_AudioFormat x) => x.AND(AUDIO_MASK_SIGNED) != 1;
+        public static bool AUDIO_ISFLOAT(this SDL_AudioFormat x) => x.AND(AUDIO_MASK_DATATYPE) != 0;
+        public static bool AUDIO_ISBIGENDIAN(this SDL_AudioFormat x) => x.AND(AUDIO_MASK_ENDIAN) != 0;
+        public static bool AUDIO_ISSIGNED(this SDL_AudioFormat x) => x.AND(AUDIO_MASK_SIGNED) != 0;
 
         public static bool AUDIO_ISINT(this SDL_AudioFormat x) => !x.AUDIO_ISFLOAT();
         public static bool AUDIO_ISLITTLEENDIAN(this SDL_AudioFormat x) => !x.AUDIO_ISBIGENDIAN();
