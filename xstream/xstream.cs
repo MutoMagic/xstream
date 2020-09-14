@@ -106,20 +106,20 @@ namespace Xstream
 
             looping = true;
 
-            Task.Run(() =>
-            {
-                while (_numToRead > 0)
-                {
-                    byte[] d = _data.ReadRange<byte>(_numToRead < 1024 ? _numToRead : 1024);
-                    _numToRead -= d.Length;
-                    _audioRenderer.Update(new PCMSample(d));
-                }
-                _data.Dispose();
-            });
+            //Task.Run(() =>
+            //{
+            //    while (_numToRead > 0)
+            //    {
+            //        byte[] d = _data.ReadRange<byte>(_numToRead < 1024 ? _numToRead : 1024);
+            //        _numToRead -= d.Length;
+            //        _audioRenderer.Update(new PCMSample(d));
+            //    }
+            //    _data.Dispose();
+            //});
         }
 
-        DataStream _data;
-        int _numToRead;
+        public static DataStream _data;
+        public static int _numToRead;
 
         protected override void WndProc(ref Message m)
         {
