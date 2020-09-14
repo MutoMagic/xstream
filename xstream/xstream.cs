@@ -129,9 +129,10 @@ namespace Xstream
                 _numToRead -= d.Length;
                 _audioRenderer.Update(new PCMSample(d));
             }
-            else
+            else if (_numToRead == 0)
             {
                 _data.Dispose();
+                _numToRead = -1;
             }
 
         end:
