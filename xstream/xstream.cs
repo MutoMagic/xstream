@@ -105,6 +105,17 @@ namespace Xstream
             }
 
             looping = true;
+
+            Task.Run(() =>
+            {
+                while (_numToRead > 0)
+                {
+                    byte[] d = _data.ReadRange<byte>(_numToRead < 1024 ? _numToRead : 1024);
+                    _numToRead -= d.Length;
+                    _audioRenderer.Update(new PCMSample(d));
+                }
+                _data.Dispose();
+            });
         }
 
         DataStream _data;
@@ -125,14 +136,7 @@ namespace Xstream
 
             if (_numToRead > 0)
             {
-                byte[] d = _data.ReadRange<byte>(_numToRead < 1024 ? _numToRead : 1024);
-                _numToRead -= d.Length;
-                _audioRenderer.Update(new PCMSample(d));
-            }
-            else if (_numToRead == 0)
-            {
-                _data.Dispose();
-                _numToRead = -1;
+                // TODO
             }
 
         end:
