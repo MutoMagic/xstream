@@ -2,6 +2,7 @@
 using SharpDX.Multimedia;
 using SmartGlass.Common;
 using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Threading;
@@ -109,6 +110,7 @@ namespace Xstream
             looping = true;
         }
 
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         byte[] _wav;
         int _numToRead;
         int _numRead;
