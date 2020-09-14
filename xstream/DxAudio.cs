@@ -427,7 +427,15 @@ namespace Xstream
 
     struct WAVEFORMATEX
     {
-        public WaveFormat local;
+        public WaveFormat local
+        {
+            get => WaveFormat.CreateCustomFormat(wFormatTag
+                , nSamplesPerSec
+                , nChannels
+                , nAvgBytesPerSec
+                , nBlockAlign
+                , wBitsPerSample);
+        }
         public int silence;
 
         public WaveFormatEncoding wFormatTag;
@@ -480,14 +488,7 @@ namespace Xstream
 
             nBlockAlign = nChannels * (wBitsPerSample / 8);
             nAvgBytesPerSec = nSamplesPerSec * nBlockAlign;
-            cbSize = 0;
-
-            local = WaveFormat.CreateCustomFormat(wFormatTag
-                , nSamplesPerSec
-                , nChannels
-                , nAvgBytesPerSec
-                , nBlockAlign
-                , wBitsPerSample);
+            cbSize = 22;
         }
     }
 
@@ -502,9 +503,9 @@ namespace Xstream
 
         public static int AUDIO_BITSIZE(this SDL_AudioFormat x) => x.AND(AUDIO_MASK_BITSIZE);
 
-        public static bool AUDIO_ISFLOAT(this SDL_AudioFormat x) => x.AND(AUDIO_MASK_DATATYPE) == 1;
-        public static bool AUDIO_ISBIGENDIAN(this SDL_AudioFormat x) => x.AND(AUDIO_MASK_ENDIAN) == 1;
-        public static bool AUDIO_ISSIGNED(this SDL_AudioFormat x) => x.AND(AUDIO_MASK_SIGNED) == 1;
+        public static bool AUDIO_ISFLOAT(this SDL_AudioFormat x) => x.AND(AUDIO_MASK_DATATYPE) != 1;
+        public static bool AUDIO_ISBIGENDIAN(this SDL_AudioFormat x) => x.AND(AUDIO_MASK_ENDIAN) != 1;
+        public static bool AUDIO_ISSIGNED(this SDL_AudioFormat x) => x.AND(AUDIO_MASK_SIGNED) != 1;
 
         public static bool AUDIO_ISINT(this SDL_AudioFormat x) => !x.AUDIO_ISFLOAT();
         public static bool AUDIO_ISLITTLEENDIAN(this SDL_AudioFormat x) => !x.AUDIO_ISBIGENDIAN();

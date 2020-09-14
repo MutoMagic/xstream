@@ -136,7 +136,7 @@ namespace Xstream
 
             if (_numToRead > 0)
             {
-                // TODO
+                // nop
             }
 
         end:
