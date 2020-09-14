@@ -1,4 +1,5 @@
-﻿using SmartGlass.Common;
+﻿using SharpDX.Multimedia;
+using SmartGlass.Common;
 using System;
 using System.Drawing;
 using System.Threading;
@@ -42,8 +43,8 @@ namespace Xstream
 
             _cancellationTokenSource = new CancellationTokenSource();
 
-            _audioRenderer = new DxAudio(
-                (int)Program.AudioFormat.SampleRate, (int)Program.AudioFormat.Channels);
+            //_audioRenderer = new DxAudio(
+            //    (int)Program.AudioFormat.SampleRate, (int)Program.AudioFormat.Channels);
             _videoRenderer = new DxVideo(
                 (int)Program.VideoFormat.Width, (int)Program.VideoFormat.Height, this);
 
@@ -87,7 +88,7 @@ namespace Xstream
 
             _audioRenderer.Initialize(1024);
 
-            Decoder.Start();
+            //Decoder.Start();
 
             if (_useController)
             {
@@ -97,6 +98,8 @@ namespace Xstream
             looping = true;
         }
 
+        SoundStream _stream;
+
         protected override void WndProc(ref Message m)
         {
             base.WndProc(ref m);
@@ -104,11 +107,11 @@ namespace Xstream
             if (!looping)
                 return;
 
-            if (Decoder.DecodedAudioQueue.Count > 0)
-            {
-                var sample = Decoder.DecodedAudioQueue.Dequeue();
-                _audioRenderer.Update(sample);
-            }
+            //if (Decoder.DecodedAudioQueue.Count > 0)
+            //{
+            //    var sample = Decoder.DecodedAudioQueue.Dequeue();
+            //    _audioRenderer.Update(sample);
+            //}
         }
     }
 }
