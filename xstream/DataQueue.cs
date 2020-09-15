@@ -1,5 +1,13 @@
-﻿using System;
+﻿using Org.BouncyCastle.Security;
+using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
+
+#if WIN32
+using size_t = System.UInt32;
+#else
+using size_t = System.UInt64;
+#endif
 
 namespace Xstream
 {
@@ -10,8 +18,8 @@ namespace Xstream
         [StructLayout(LayoutKind.Sequential)]
         struct SDL_DataQueuePacket
         {
-            public uint datalen;
-            public uint startpos;
+            public size_t datalen;
+            public size_t startpos;
             public SDL_DataQueuePacket* next;
             //[MarshalAs(UnmanagedType.ByValArray, SizeConst = SDL_VARIABLE_LENGTH_ARRAY)]
             //public byte[] data;
@@ -20,8 +28,8 @@ namespace Xstream
 
         internal OutOfMemoryException err;
 
-        internal uint datalen;// bytes currently in use in this packet.
-        internal uint startpos;// bytes currently consumed in this packet.
+        internal size_t datalen;// bytes currently in use in this packet.
+        internal size_t startpos;// bytes currently consumed in this packet.
         internal DataQueuePacket next;// next item in linked list.
         // Uint8 data[SDL_VARIABLE_LENGTH_ARRAY];
         internal byte* data;// packet data
@@ -31,15 +39,15 @@ namespace Xstream
             Dispose();
         }
 
-        public DataQueuePacket(uint packetlen)
+        public DataQueuePacket(int packetlen)
         {
             try
             {
-                packetlen += (uint)(Marshal.SizeOf<SDL_DataQueuePacket>()
-                    - Marshal.SizeOf<uint>() * 2
-                    - UIntPtr.Size);
+                SDL_DataQueuePacket p;// 栈是从高地址到底地址存储数据
+                packetlen += Marshal.SizeOf<SDL_DataQueuePacket>() - (int)(
+                    (size_t)(&p.datalen) - (size_t)(&p.data));
 
-                data = (byte*)Marshal.AllocHGlobal((int)packetlen);
+                data = (byte*)Marshal.AllocHGlobal(packetlen);
             }
             catch (OutOfMemoryException e)
             {
@@ -54,21 +62,22 @@ namespace Xstream
             {
                 Marshal.FreeHGlobal((IntPtr)data);
                 data = null;// 预防野指针
+                GC.SuppressFinalize(this);
             }
         }
 
-        public static DataQueue NewDataQueue(uint _packetlen, uint initialslack)
+        public static DataQueue NewDataQueue(size_t _packetlen, size_t initialslack)
         {
             DataQueue queue = new DataQueue();
 
-            uint packetlen = _packetlen > 0 ? _packetlen : 1024;
-            uint wantpackets = (initialslack + (packetlen - 1)) / packetlen;
+            size_t packetlen = _packetlen > 0 ? _packetlen : 1024;
+            size_t wantpackets = (initialslack + (packetlen - 1)) / packetlen;
 
             queue.packet_size = packetlen;
 
-            for (uint i = 0; i < wantpackets; i++)
+            for (size_t i = 0; i < wantpackets; i++)
             {
-                DataQueuePacket packet = new DataQueuePacket(packetlen);
+                DataQueuePacket packet = new DataQueuePacket((int)packetlen);
 
                 // don't care if this fails, we'll deal later.
                 if (packet.data != null)
@@ -83,16 +92,37 @@ namespace Xstream
             return queue;
         }
 
-        public static int WriteToDataQueue(DataQueue queue, byte* data, uint length)
+        public static int WriteToDataQueue(DataQueue queue, void* _data, size_t _len)
         {
-            DataQueuePacket orighead = queue.head;
-            DataQueuePacket origtail = queue.tail;
-            uint origlen = origtail != null ? origtail.datalen : 0;
-            uint datalen;
+            /*
+             * 有些变量看似是多余的，这里参考以下几点，请慎重考虑后再作修改！
+             * 
+             * 1.访问静态变量和实例变量将会比访问局部变量多耗费2-3个时钟周期。
+             * 2.修改参数通常会使代码的可读性更差，并且可能需要更多的时间来了解函数中实际发生的事情。
+             * 因此，通常不建议修改参数。将此优化留给编译器。
+             */
+            size_t len = _len;
+            byte* data = (byte*)_data;
+            size_t packet_size = queue != null ? queue.packet_size : 0;
+            DataQueuePacket orighead;
+            DataQueuePacket origtail;
+            size_t origlen;
+            size_t datalen;
 
-            while (length > 0)
+            if (queue == null)
+            {
+                // 连queue都没了，错误没地方存，根本无法返回HResult，还不如直接throw
+                throw new InvalidParameterException("queue");
+            }
+
+            orighead = queue.head;
+            origtail = queue.tail;
+            origlen = origtail != null ? origtail.datalen : 0;
+
+            while (len > 0)
             {
                 DataQueuePacket packet = queue.tail;
+                Debug.Assert(packet == null || packet.datalen <= queue.packet_size);
                 if (packet == null || packet.datalen >= queue.packet_size)
                 {
                     // tail packet missing or completely full; we need a new packet.
@@ -101,6 +131,7 @@ namespace Xstream
                     {
                         OutOfMemoryException err = packet.err;
 
+                        // uhoh, reset so we've queued nothing new, free what we can.
                         if (origtail == null)
                         {
                             packet = queue.head;// whole queue.
@@ -120,10 +151,10 @@ namespace Xstream
                     }
                 }
 
-                datalen = Math.Min(length, queue.packet_size - packet.datalen);
+                datalen = Math.Min(len, packet_size - packet.datalen);
                 Program.CopyMemory(packet.data + packet.datalen, data, datalen);
                 data += datalen;
-                length -= datalen;
+                len -= datalen;
                 packet.datalen += datalen;
                 queue.queued_bytes += datalen;
             }
@@ -133,8 +164,11 @@ namespace Xstream
 
         private static DataQueuePacket AllocateDataQueuePacket(DataQueue queue)
         {
-            DataQueuePacket packet = queue.pool;
+            DataQueuePacket packet;
 
+            Debug.Assert(queue != null);
+
+            packet = queue.pool;
             if (packet != null)
             {
                 // we have one available in the pool.
@@ -143,7 +177,7 @@ namespace Xstream
             else
             {
                 // Have to allocate a new one!
-                packet = new DataQueuePacket(queue.packet_size);
+                packet = new DataQueuePacket((int)queue.packet_size);
                 if (packet.data == null)
                     return null;
             }
@@ -152,6 +186,7 @@ namespace Xstream
             packet.startpos = 0;
             packet.next = null;
 
+            Debug.Assert((queue.head != null) == (queue.queued_bytes != 0));
             if (queue.tail == null)
             {
                 queue.head = packet;
@@ -173,18 +208,22 @@ namespace Xstream
             }
         }
 
-        public static uint ReadFromDataQueue(DataQueue queue, byte* buf, uint len)
+        public static size_t ReadFromDataQueue(DataQueue queue, void* _buf, size_t _len)
         {
-            if (queue == null)
-                return 0;
-
-            DataQueuePacket packet = queue.head;
+            size_t len = _len;
+            byte* buf = (byte*)_buf;
             byte* ptr = buf;
+            DataQueuePacket packet;
 
-            while (len > 0 && packet != null)
+            if (queue == null)
             {
-                uint avail = packet.datalen - packet.startpos;
-                uint cpy = Math.Min(len, avail);
+                return 0;
+            }
+
+            while (len > 0 && (packet = queue.head) != null)
+            {
+                size_t avail = packet.datalen - packet.startpos;
+                size_t cpy = Math.Min(len, avail);
 
                 Program.CopyMemory(ptr, packet.data + packet.startpos, cpy);
                 packet.startpos += cpy;
@@ -192,20 +231,23 @@ namespace Xstream
                 queue.queued_bytes -= cpy;
                 len -= cpy;
 
-                if (packet.startpos == packet.datalen)
+                if (packet.startpos == packet.datalen)// packet is done, put it in the pool.
                 {
                     queue.head = packet.next;
+                    Debug.Assert(packet.next != null || packet == queue.tail);
                     packet.next = queue.pool;
                     queue.pool = packet;
                 }
             }
+
+            Debug.Assert((queue.head != null) == (queue.queued_bytes != 0));
 
             if (queue.head == null)
             {
                 queue.tail = null;// in case we drained the queue entirely.
             }
 
-            return (uint)(ptr - buf);
+            return (size_t)(ptr - buf);
         }
 
         public static void FreeDataQueue(DataQueue queue)
@@ -216,6 +258,11 @@ namespace Xstream
                 FreeDataQueueList(queue.pool);
             }
         }
+
+        public static void ClearDataQueue(DataQueue queue)
+        {
+
+        }
     }
 
     class DataQueue
@@ -223,7 +270,7 @@ namespace Xstream
         internal DataQueuePacket head;// device fed from here.
         internal DataQueuePacket tail;// queue fills to here.
         internal DataQueuePacket pool;// these are unused packets.
-        internal uint packet_size;// size of new packets
-        internal uint queued_bytes;// number of bytes of data in the queue.
+        internal size_t packet_size;// size of new packets
+        internal size_t queued_bytes;// number of bytes of data in the queue.
     }
 }

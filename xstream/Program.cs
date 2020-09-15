@@ -15,6 +15,12 @@ using XboxWebApi.Authentication;
 using XboxWebApi.Authentication.Model;
 using Xstream.Codec;
 
+#if WIN32
+using size_t = System.UInt32;
+#else
+using size_t = System.UInt64;
+#endif
+
 namespace Xstream
 {
     static class Program
@@ -310,7 +316,7 @@ namespace Xstream
         static string GetPrivateProfileString(string section, string key, string def, string filePath)
         {
             StringBuilder sb = new StringBuilder(255);
-            GetPrivateProfileString(section, key, def, sb, sb.Capacity, filePath);
+            GetPrivateProfileString(section, key, def, sb, (uint)sb.Capacity, filePath);
             return sb.ToString();
         }
 
@@ -325,22 +331,22 @@ namespace Xstream
         }
 
         [DllImport("Kernel32.dll", EntryPoint = "RtlZeroMemory", SetLastError = false)]
-        public static unsafe extern void ZeroMemory(void* Destination, uint Length);
+        public static unsafe extern void ZeroMemory(void* Destination, size_t Length);
         [DllImport("msvcrt.dll", EntryPoint = "memset", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
-        public static unsafe extern void* SetMemory(void* dest, int c, uint byteCount);
+        public static unsafe extern void* SetMemory(void* dest, int c, size_t byteCount);
         [DllImport("msvcrt.dll", EntryPoint = "memcpy", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
-        public static unsafe extern void* CopyMemory(void* dest, void* src, uint count);
+        public static unsafe extern void* CopyMemory(void* dest, void* src, size_t count);
         [DllImport("kernel32")]
         public static extern bool AllocConsole();
         [DllImport("kernel32")]
         public static extern bool FreeConsole();
         [DllImport("kernel32")]
-        static extern int GetPrivateProfileString(
+        static extern uint GetPrivateProfileString(
             string lpAppName,
             string lpKeyName,
             string lpDefault,
             StringBuilder lpReturnedString,
-            int nSize,
+            uint nSize,
             string lpFileName);
         [DllImport("kernel32")]
         static extern void Sleep(uint dwMilliseconds);

@@ -7,6 +7,12 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using Xstream.Codec;
 
+#if WIN32
+using size_t = System.UInt32;
+#else
+using size_t = System.UInt64;
+#endif
+
 namespace Xstream
 {
     public unsafe class DxAudio
