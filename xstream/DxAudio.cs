@@ -78,7 +78,7 @@ namespace Xstream
 
         XAudio2 _xaudio2;
         MasteringVoice _masteringVoice;
-        WAVEFORMATEX _waveFormat;
+        WaveFormatEx _waveFormat;
         SourceVoice _sourceVoice;
         int _bufferSize;
         int _bufferSize2;
@@ -217,7 +217,7 @@ namespace Xstream
              */
             _masteringVoice = new MasteringVoice(_xaudio2, XAUDIO2_DEFAULT_CHANNELS, _sampleRate, _dev);
 
-            _waveFormat = new WAVEFORMATEX(SDL_AudioFormat.AUDIO_F32, _channels, _sampleRate);
+            _waveFormat = new WaveFormatEx(SDL_AudioFormat.AUDIO_F32, _channels, _sampleRate);
             _sourceVoice = new SourceVoice(_xaudio2
                 , _waveFormat.Local
                 , VoiceFlags.NoSampleRateConversion | VoiceFlags.NoPitch
@@ -229,7 +229,7 @@ namespace Xstream
             _hidden.handle = GCHandle.Alloc(this);
             _hidden.semaphore = new AutoResetEvent(false);
 
-            _bufferSize = _waveFormat.nBlockAlign * _samples;
+            _bufferSize = _waveFormat.BlockAlign * _samples;
             _bufferSize2 = _bufferSize * 2;
 
             // We feed a Source, it feeds the Mastering, which feeds the device.
@@ -426,7 +426,7 @@ namespace Xstream
         }
     }
 
-    struct WAVEFORMATEX
+    struct WaveFormatEx
     {
         [StructLayout(LayoutKind.Sequential)]
         struct WAVEFORMATEX_C
@@ -442,25 +442,25 @@ namespace Xstream
 
         public WaveFormat Local
         {
-            get => WaveFormat.CreateCustomFormat(wFormatTag
-                , nSamplesPerSec
-                , nChannels
-                , nAvgBytesPerSec
-                , nBlockAlign
-                , wBitsPerSample);
+            get => WaveFormat.CreateCustomFormat(FormatTag
+                , SamplesPerSec
+                , Channels
+                , AvgBytesPerSec
+                , BlockAlign
+                , BitsPerSample);
         }
 
         public int Silence;
 
-        public WaveFormatEncoding wFormatTag;
-        public int nChannels;
-        public int nSamplesPerSec;
-        public int nAvgBytesPerSec;
-        public int nBlockAlign;
-        public int wBitsPerSample;
-        public int cbSize;
+        public WaveFormatEncoding FormatTag;
+        public int Channels;
+        public int SamplesPerSec;
+        public int AvgBytesPerSec;
+        public int BlockAlign;
+        public int BitsPerSample;
+        public int ExtraSize;
 
-        public WAVEFORMATEX(SDL_AudioFormat format, int nChannels, int nSamplesPerSec)
+        public WaveFormatEx(SDL_AudioFormat format, int nChannels, int nSamplesPerSec)
         {
             SDL_AudioFormat test_format = format.FirstAudioFormat();
             bool valid_format = false;
@@ -495,14 +495,14 @@ namespace Xstream
                     break;
             }
 
-            wFormatTag = format.AUDIO_ISFLOAT() ? WaveFormatEncoding.IeeeFloat : WaveFormatEncoding.Pcm;
-            wBitsPerSample = format.AUDIO_BITSIZE();
-            this.nChannels = nChannels;
-            this.nSamplesPerSec = nSamplesPerSec;
+            FormatTag = format.AUDIO_ISFLOAT() ? WaveFormatEncoding.IeeeFloat : WaveFormatEncoding.Pcm;
+            BitsPerSample = format.AUDIO_BITSIZE();
+            Channels = nChannels;
+            SamplesPerSec = nSamplesPerSec;
 
-            nBlockAlign = nChannels * (wBitsPerSample / 8);
-            nAvgBytesPerSec = nSamplesPerSec * nBlockAlign;
-            cbSize = Marshal.SizeOf<WAVEFORMATEX_C>();
+            BlockAlign = nChannels * (BitsPerSample / 8);
+            AvgBytesPerSec = nSamplesPerSec * BlockAlign;
+            ExtraSize = Marshal.SizeOf<WAVEFORMATEX_C>();
         }
     }
 

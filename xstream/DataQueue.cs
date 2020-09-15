@@ -5,12 +5,24 @@ namespace Xstream
 {
     unsafe class DataQueuePacket : IDisposable
     {
+        const int SDL_VARIABLE_LENGTH_ARRAY = 1;
+
+        [StructLayout(LayoutKind.Sequential)]
+        struct SDL_DataQueuePacket
+        {
+            public uint datalen;
+            public uint startpos;
+            public SDL_DataQueuePacket* next;
+            //[MarshalAs(UnmanagedType.ByValArray, SizeConst = SDL_VARIABLE_LENGTH_ARRAY)]
+            //public byte[] data;
+            public fixed byte data[SDL_VARIABLE_LENGTH_ARRAY];
+        }
+
         internal OutOfMemoryException err;
 
         internal uint datalen;// bytes currently in use in this packet.
         internal uint startpos;// bytes currently consumed in this packet.
         internal DataQueuePacket next;// next item in linked list.
-        // #define SDL_VARIABLE_LENGTH_ARRAY 1
         // Uint8 data[SDL_VARIABLE_LENGTH_ARRAY];
         internal byte* data;// packet data
 
@@ -23,7 +35,11 @@ namespace Xstream
         {
             try
             {
-                data = (byte*)Marshal.AllocHGlobal(Marshal.SizeOf<byte>() + (int)packetlen);
+                packetlen += (uint)(Marshal.SizeOf<SDL_DataQueuePacket>()
+                    - Marshal.SizeOf<uint>() * 2
+                    - UIntPtr.Size);
+
+                data = (byte*)Marshal.AllocHGlobal((int)packetlen);
             }
             catch (OutOfMemoryException e)
             {
