@@ -1,9 +1,9 @@
-﻿using SharpDX;
+﻿using NAudio.CoreAudioApi;
+using SharpDX;
 using SharpDX.Multimedia;
 using SharpDX.XAudio2;
 using System;
 using System.Diagnostics;
-using System.Management;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Xstream.Codec;
@@ -16,7 +16,7 @@ using size_t = System.UInt64;
 
 namespace Xstream
 {
-    public unsafe class DxAudio
+    public unsafe class DxAudio : IDisposable
     {
         const int XAUDIO2_DEFAULT_CHANNELS = 0;
         const int XAUDIO2_COMMIT_NOW = 0;
@@ -25,15 +25,38 @@ namespace Xstream
         unsafe class PrivateAudioData : IDisposable
         {
             internal GCHandle handle;
+            internal IntPtr device;
 
             internal AutoResetEvent semaphore;
             internal byte* mixbuf;
             internal int mixlen;
             internal byte* nextbuf;
 
+            ~PrivateAudioData()
+            {
+                Dispose();
+            }
+
+            public PrivateAudioData(DxAudio _this)
+            {
+                handle = GCHandle.Alloc(_this);
+                device = GCHandle.ToIntPtr(handle);
+
+                semaphore = new AutoResetEvent(false);
+                // We feed a Source, it feeds the Mastering, which feeds the device.
+                mixlen = _this._bufferSize;
+                mixbuf = (byte*)Marshal.AllocHGlobal(2 * mixlen);
+                nextbuf = mixbuf;
+                Program.SetMemory(mixbuf, _this._waveFormat.Silence, (size_t)(2 * mixlen));
+            }
+
             public void Dispose()
             {
-                semaphore.Close();
+                if (handle.IsAllocated)
+                {
+                    handle.Free();
+                    device = IntPtr.Zero;
+                }
 
                 if (mixbuf != null)
                 {
@@ -41,20 +64,19 @@ namespace Xstream
                     mixbuf = null;
                 }
 
-                if (handle.IsAllocated)
-                    handle.Free();
+                GC.SuppressFinalize(this);
             }
         }
 
         sealed class Callbacks : CallbackBase, VoiceCallback
         {
-            Callbacks() { }
+            private Callbacks() { }
 
             public static readonly Callbacks Instance = new Callbacks();
 
             public void OnBufferEnd(IntPtr context)
             {
-                // Just signal the SDL audio thread and get out of XAudio2's way.
+                // Just signal the audio thread and get out of XAudio2's way.
                 DxAudio device = (DxAudio)GCHandle.FromIntPtr(context).Target;
                 device._hidden.semaphore.Set();
             }
@@ -88,7 +110,6 @@ namespace Xstream
         WaveFormatEx _waveFormat;
         SourceVoice _sourceVoice;
         int _bufferSize;
-        int _bufferSize2;
         PrivateAudioData _hidden;
         DataQueue _queue;
         int _worklen;
@@ -102,7 +123,7 @@ namespace Xstream
 
         ~DxAudio()
         {
-            Close();
+            Dispose();
         }
 
         public DxAudio(int sampleRate, int channels)
@@ -129,10 +150,18 @@ namespace Xstream
             _paused = true;
             _enabled = true;
 
-            OpenDevice();
+            try
+            {
+                OpenDevice();
+            }
+            catch (SharpDXException e)
+            {
+                Debug.WriteLine($"Failed to open audio: {e.Message}");
+                return 1;
+            }
 
             // pool a few packets to start. Enough for two callbacks.
-            _queue = DataQueuePacket.NewDataQueue(SDL_AUDIOBUFFERQUEUE_PACKETLEN, (uint)_bufferSize2);
+            _queue = DataQueuePacket.NewDataQueue(SDL_AUDIOBUFFERQUEUE_PACKETLEN, (size_t)(_bufferSize * 2));
 
             // Allocate a scratch audio buffer
             _worklen = _bufferSize;
@@ -153,11 +182,28 @@ namespace Xstream
         {
             try
             {
-                GetGlobalDefaultDevice27();
+                /*
+                 * 相关内容已在Version28中移除
+                 * 
+                 * @see: https://docs.microsoft.com/en-us/windows/win32/xaudio2/xaudio2-versions
+                 */
+                _xaudio2 = new XAudio2(XAudio2Version.Version27);
+                for (int i = 0; i < _xaudio2.DeviceCount; i++)
+                {
+                    DeviceDetails device = _xaudio2.GetDeviceDetails(i);
+                    if (device.Role == DeviceRole.GlobalDefaultDevice)
+                    {
+                        _dev = device.DeviceID;
+                        break;
+                    }
+                }
+                _xaudio2.Dispose();
             }
             catch
             {
-                GetGlobalDefaultDevice();
+                var enumerator = new MMDeviceEnumerator();
+                var device = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Console);
+                _dev = device?.ID;
             }
 
             _xaudio2 = new XAudio2(XAudio2Flags.None, ProcessorSpecifier.DefaultProcessor);
@@ -174,73 +220,28 @@ namespace Xstream
 
             _waveFormat = new WaveFormatEx(SDL_AudioFormat.AUDIO_F32, _channels, _sampleRate);
             _sourceVoice = new SourceVoice(_xaudio2
-                , _waveFormat.Local
+                , _waveFormat
                 , VoiceFlags.NoSampleRateConversion | VoiceFlags.NoPitch
                 , 1.0f
                 , Callbacks.Instance);
 
-            // Initialize all variables that we clean on shutdown
-            _hidden = new PrivateAudioData();
-            _hidden.handle = GCHandle.Alloc(this);
-            _hidden.semaphore = new AutoResetEvent(false);
-
             _bufferSize = _waveFormat.BlockAlign * _samples;
-            _bufferSize2 = _bufferSize * 2;
+            _hidden = new PrivateAudioData(this);
 
-            // We feed a Source, it feeds the Mastering, which feeds the device.
-            _hidden.mixlen = _bufferSize;
-            _hidden.mixbuf = (byte*)Marshal.AllocHGlobal(_bufferSize2);
-            _hidden.nextbuf = _hidden.mixbuf;
-            Program.SetMemory(_hidden.mixbuf, _waveFormat.Silence, (uint)_bufferSize2);
-
+            // Start everything playing!
             _xaudio2.StartEngine();
             _sourceVoice.Start(XAUDIO2_COMMIT_NOW);
-        }
-
-        /*
-         * 相关内容已在Version28中移除
-         * 
-         * @see: https://docs.microsoft.com/en-us/windows/win32/xaudio2/xaudio2-versions
-         */
-        private void GetGlobalDefaultDevice27()
-        {
-            _xaudio2 = new XAudio2(XAudio2Version.Version27);
-
-            for (int i = 0; i < _xaudio2.DeviceCount; i++)
-            {
-                DeviceDetails device = _xaudio2.GetDeviceDetails(i);
-
-                if (device.Role == DeviceRole.GlobalDefaultDevice)
-                {
-                    _dev = device.DeviceID;
-                    break;
-                }
-            }
-
-            _xaudio2.Dispose();
-        }
-
-        private void GetGlobalDefaultDevice()
-        {
-            ManagementObjectSearcher mos = new ManagementObjectSearcher("SELECT * FROM Win32_SoundDevice");
-            foreach (ManagementObject mo in mos.Get())
-            {
-                foreach (var p in mo.Properties)
-                {
-                    Console.WriteLine($"{p.Name}:{p.Value}");
-                }
-            }
         }
 
         public int Update(PCMSample sample)
         {
             fixed (byte* p = sample.SampleData)
             {
-                return UpdateAudio(p, (uint)sample.SampleData.Length);
+                return UpdateAudio((IntPtr)p, (uint)sample.SampleData.Length);
             }
         }
 
-        private int UpdateAudio(byte* data, uint length)
+        private int UpdateAudio(IntPtr data, uint len)
         {
             if (!Initialized)
             {
@@ -248,10 +249,24 @@ namespace Xstream
                 return -1;
             }
 
-            return QueueAudio(data, length);
+            return QueueAudio(data.ToPointer(), len);
         }
 
-        public int Close()
+        private int QueueAudio(void* data, uint len)
+        {
+            if (len == 0 ||// nothing to do?
+                _queue == null)
+            {
+                return 0;
+            }
+
+            lock (_lock)
+            {
+                return DataQueuePacket.WriteToDataQueue(_queue, data, len);
+            }
+        }
+
+        public void Close()
         {
             _dev = null;
 
@@ -275,8 +290,38 @@ namespace Xstream
             }
 
             DataQueuePacket.FreeDataQueue(_queue);
+            _queue = null;
+        }
 
-            return 0;
+        private void CloseDevice()
+        {
+            _sourceVoice?.Stop(PlayFlags.None, XAUDIO2_COMMIT_NOW);
+            _sourceVoice?.FlushSourceBuffers();
+            _sourceVoice?.DestroyVoice();
+            _sourceVoice?.Dispose();
+
+            _xaudio2?.StopEngine();
+
+            _masteringVoice?.DestroyVoice();
+            _masteringVoice?.Dispose();
+
+            _xaudio2?.Dispose();
+
+            _sourceVoice = null;
+            _masteringVoice = null;
+            _xaudio2 = null;
+
+            _hidden?.Dispose();
+            _hidden = null;
+        }
+
+        public void Dispose()
+        {
+            if (Initialized)
+            {
+                Close();
+                GC.SuppressFinalize(this);
+            }
         }
 
         // The general mixing thread function
@@ -368,7 +413,7 @@ namespace Xstream
 
             buffer.AudioBytes = _hidden.mixlen;
             buffer.AudioDataPointer = (IntPtr)nextbuf;
-            buffer.Context = GCHandle.ToIntPtr(_hidden.handle);
+            buffer.Context = _hidden.device;
 
             if (nextbuf == mixbuf)
             {
@@ -413,28 +458,6 @@ namespace Xstream
             }
         }
 
-        private void CloseDevice()
-        {
-            _sourceVoice?.Stop(PlayFlags.None, XAUDIO2_COMMIT_NOW);
-            _sourceVoice?.FlushSourceBuffers();
-            _sourceVoice?.DestroyVoice();
-            _sourceVoice?.Dispose();
-
-            _xaudio2?.StopEngine();
-
-            _masteringVoice?.DestroyVoice();
-            _masteringVoice?.Dispose();
-
-            _xaudio2?.Dispose();
-
-            _sourceVoice = null;
-            _masteringVoice = null;
-            _xaudio2 = null;
-
-            _hidden?.Dispose();
-            _hidden = null;
-        }
-
         // The audio backends call this when a currently-opened device is lost.
         private void OpenedAudioDeviceDisconnected()
         {
@@ -448,56 +471,14 @@ namespace Xstream
                 _enabled = false;
             }
         }
-
-        private int QueueAudio(byte* data, uint len)
-        {
-            if (len > 0)
-            {
-                lock (_lock)
-                {
-                    return DataQueuePacket.WriteToDataQueue(_queue, data, len);
-                }
-            }
-
-            return 0;
-        }
     }
 
-    struct WaveFormatEx
+    class WaveFormatEx : WaveFormat
     {
-        [StructLayout(LayoutKind.Sequential)]
-        struct WAVEFORMATEX_C
-        {
-            public ushort wFormatTag;
-            public ushort nChannels;
-            public uint nSamplesPerSec;
-            public uint nAvgBytesPerSec;
-            public ushort nBlockAlign;
-            public ushort wBitsPerSample;
-            public ushort cbSize;
-        }
-
-        public WaveFormat Local
-        {
-            get => WaveFormat.CreateCustomFormat(FormatTag
-                , SamplesPerSec
-                , Channels
-                , AvgBytesPerSec
-                , BlockAlign
-                , BitsPerSample);
-        }
-
         public int Silence;
 
-        public WaveFormatEncoding FormatTag;
-        public int Channels;
-        public int SamplesPerSec;
-        public int AvgBytesPerSec;
-        public int BlockAlign;
-        public int BitsPerSample;
-        public int ExtraSize;
-
-        public WaveFormatEx(SDL_AudioFormat format, int nChannels, int nSamplesPerSec)
+        public WaveFormatEx(SDL_AudioFormat format, int channels, int sampleRate)
+            : base(sampleRate, format.AUDIO_BITSIZE(), channels)
         {
             SDL_AudioFormat test_format = format.FirstAudioFormat();
             bool valid_format = false;
@@ -532,14 +513,26 @@ namespace Xstream
                     break;
             }
 
-            FormatTag = format.AUDIO_ISFLOAT() ? WaveFormatEncoding.IeeeFloat : WaveFormatEncoding.Pcm;
-            BitsPerSample = format.AUDIO_BITSIZE();
-            Channels = nChannels;
-            SamplesPerSec = nSamplesPerSec;
+            waveFormatTag = format.AUDIO_ISFLOAT() ? WaveFormatEncoding.IeeeFloat : WaveFormatEncoding.Pcm;
+            //bitsPerSample = (short)format.AUDIO_BITSIZE();
+            //this.channels = (short)channels;
+            //this.sampleRate = sampleRate;
 
-            BlockAlign = nChannels * (BitsPerSample / 8);
-            AvgBytesPerSec = nSamplesPerSec * BlockAlign;
-            ExtraSize = Marshal.SizeOf<WAVEFORMATEX_C>();
+            //blockAlign = (short)(channels * (bitsPerSample / 8));
+            //averageBytesPerSecond = sampleRate * blockAlign;
+            extraSize = (short)Marshal.SizeOf<WAVEFORMATEX>();
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        struct WAVEFORMATEX
+        {
+            public ushort wFormatTag;
+            public ushort nChannels;
+            public uint nSamplesPerSec;
+            public uint nAvgBytesPerSec;
+            public ushort nBlockAlign;
+            public ushort wBitsPerSample;
+            public ushort cbSize;
         }
     }
 
