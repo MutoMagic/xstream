@@ -16,13 +16,13 @@ using size_t = System.UInt64;
 
 namespace Xstream
 {
-    public unsafe class DxAudio : IDisposable
+    public unsafe class DxAudio
     {
         const int XAUDIO2_DEFAULT_CHANNELS = 0;
         const int XAUDIO2_COMMIT_NOW = 0;
         const int SDL_AUDIOBUFFERQUEUE_PACKETLEN = 8 * 1024;
 
-        unsafe class PrivateAudioData : IDisposable
+        struct PrivateAudioData
         {
             internal GCHandle handle;
             internal IntPtr device;
@@ -31,41 +31,6 @@ namespace Xstream
             internal byte* mixbuf;
             internal int mixlen;
             internal byte* nextbuf;
-
-            ~PrivateAudioData()
-            {
-                Dispose();
-            }
-
-            public PrivateAudioData(DxAudio _this)
-            {
-                handle = GCHandle.Alloc(_this);
-                device = GCHandle.ToIntPtr(handle);
-
-                semaphore = new AutoResetEvent(false);
-                // We feed a Source, it feeds the Mastering, which feeds the device.
-                mixlen = _this._bufferSize;
-                mixbuf = (byte*)Marshal.AllocHGlobal(2 * mixlen);
-                nextbuf = mixbuf;
-                Program.SetMemory(mixbuf, _this._waveFormat.Silence, (size_t)(2 * mixlen));
-            }
-
-            public void Dispose()
-            {
-                if (handle.IsAllocated)
-                {
-                    handle.Free();
-                    device = IntPtr.Zero;
-                }
-
-                if (mixbuf != null)
-                {
-                    Marshal.FreeHGlobal((IntPtr)mixbuf);
-                    mixbuf = null;
-                }
-
-                GC.SuppressFinalize(this);
-            }
         }
 
         sealed class Callbacks : CallbackBase, VoiceCallback
@@ -121,11 +86,6 @@ namespace Xstream
         bool _shutdown;
         bool _enabled;
 
-        ~DxAudio()
-        {
-            Dispose();
-        }
-
         public DxAudio(int sampleRate, int channels)
         {
             _sampleRate = sampleRate;
@@ -157,6 +117,7 @@ namespace Xstream
             catch (SharpDXException e)
             {
                 Debug.WriteLine($"Failed to open audio: {e.Message}");
+                Close();
                 return 1;
             }
 
@@ -201,9 +162,16 @@ namespace Xstream
             }
             catch
             {
+                Debug.Assert(_xaudio2 == null || _xaudio2.IsDisposed);
+
                 var enumerator = new MMDeviceEnumerator();
                 var device = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Console);
                 _dev = device?.ID;
+            }
+
+            if (_dev == null)
+            {
+                throw new SharpDXException(Result.Fail, "没有默认扬声器");
             }
 
             _xaudio2 = new XAudio2(XAudio2Flags.None, ProcessorSpecifier.DefaultProcessor);
@@ -225,110 +193,28 @@ namespace Xstream
                 , 1.0f
                 , Callbacks.Instance);
 
+            _hidden.handle = GCHandle.Alloc(this);
+            _hidden.device = GCHandle.ToIntPtr(_hidden.handle);
+            _hidden.semaphore = new AutoResetEvent(false);
+
             _bufferSize = _waveFormat.BlockAlign * _samples;
-            _hidden = new PrivateAudioData(this);
+
+            // We feed a Source, it feeds the Mastering, which feeds the device.
+            _hidden.mixlen = _bufferSize;
+            _hidden.mixbuf = (byte*)Marshal.AllocHGlobal(2 * _hidden.mixlen);
+            _hidden.nextbuf = _hidden.mixbuf;
+            Program.SetMemory(_hidden.mixbuf, _waveFormat.Silence, (size_t)(2 * _hidden.mixlen));
 
             // Start everything playing!
             _xaudio2.StartEngine();
             _sourceVoice.Start(XAUDIO2_COMMIT_NOW);
         }
 
-        public int Update(PCMSample sample)
-        {
-            fixed (byte* p = sample.SampleData)
-            {
-                return UpdateAudio((IntPtr)p, (uint)sample.SampleData.Length);
-            }
-        }
-
-        private int UpdateAudio(IntPtr data, uint len)
-        {
-            if (!Initialized)
-            {
-                Debug.WriteLine("XAudio2 not initialized yet...");
-                return -1;
-            }
-
-            return QueueAudio(data.ToPointer(), len);
-        }
-
-        private int QueueAudio(void* data, uint len)
-        {
-            if (len == 0 ||// nothing to do?
-                _queue == null)
-            {
-                return 0;
-            }
-
-            lock (_lock)
-            {
-                return DataQueuePacket.WriteToDataQueue(_queue, data, len);
-            }
-        }
-
-        public void Close()
-        {
-            _dev = null;
-
-            _shutdown = true;
-            _enabled = false;
-
-            if (_thread != null)
-            {
-                _thread.Join();
-            }
-
-            if (_workbuf != null)
-            {
-                Marshal.FreeHGlobal((IntPtr)_workbuf);
-                _workbuf = null;
-            }
-
-            if (_hidden != null)
-            {
-                CloseDevice();
-            }
-
-            DataQueuePacket.FreeDataQueue(_queue);
-            _queue = null;
-        }
-
-        private void CloseDevice()
-        {
-            _sourceVoice?.Stop(PlayFlags.None, XAUDIO2_COMMIT_NOW);
-            _sourceVoice?.FlushSourceBuffers();
-            _sourceVoice?.DestroyVoice();
-            _sourceVoice?.Dispose();
-
-            _xaudio2?.StopEngine();
-
-            _masteringVoice?.DestroyVoice();
-            _masteringVoice?.Dispose();
-
-            _xaudio2?.Dispose();
-
-            _sourceVoice = null;
-            _masteringVoice = null;
-            _xaudio2 = null;
-
-            _hidden?.Dispose();
-            _hidden = null;
-        }
-
-        public void Dispose()
-        {
-            if (Initialized)
-            {
-                Close();
-                GC.SuppressFinalize(this);
-            }
-        }
-
         // The general mixing thread function
         private void RunAudio()
         {
-            uint data_len = (uint)_bufferSize;
             int delay = _samples * 1000 / _sampleRate;
+            size_t data_len = (size_t)_bufferSize;
             byte* data;
 
             // Loop, filling the audio buffers
@@ -387,37 +273,43 @@ namespace Xstream
             Program.Delay(delay * 2);
         }
 
-        private void BufferQueueDrainCallback(byte* stream, uint len)
+        private void BufferQueueDrainCallback(byte* stream, size_t len)
         {
             // this function always holds the mixer lock before being called.
-            uint dequeued = (uint)DataQueuePacket.ReadFromDataQueue(_queue, stream, len);
+            size_t dequeued;
 
+            Debug.Assert(Initialized);// this shouldn't ever happen, right?!
+
+            dequeued = DataQueuePacket.ReadFromDataQueue(_queue, stream, len);
             stream += dequeued;
             len -= dequeued;
 
-            if (len > 0)
+            if (len > 0)// fill any remaining space in the stream with silence.
             {
-                // fill any remaining space in the stream with silence.
+                Debug.Assert(DataQueuePacket.CountDataQueue(_queue) == 0);
                 Program.SetMemory(stream, _waveFormat.Silence, len);
             }
         }
 
         private void PlayDevice()
         {
+            AudioBuffer buffer;
+            byte* mixbuf = _hidden.mixbuf;
+            byte* nextbuf = _hidden.nextbuf;
+            int mixlen = _hidden.mixlen;
+
             if (!_enabled)// shutting down?
                 return;
 
-            AudioBuffer buffer = new AudioBuffer();
-            byte* mixbuf = _hidden.mixbuf;
-            byte* nextbuf = _hidden.nextbuf;
-
-            buffer.AudioBytes = _hidden.mixlen;
+            // Submit the next filled buffer
+            buffer = new AudioBuffer();
+            buffer.AudioBytes = mixlen;
             buffer.AudioDataPointer = (IntPtr)nextbuf;
             buffer.Context = _hidden.device;
 
             if (nextbuf == mixbuf)
             {
-                nextbuf += _hidden.mixlen;
+                nextbuf += mixlen;
             }
             else
             {
@@ -431,7 +323,7 @@ namespace Xstream
             }
             catch (SharpDXException e)
             {
-                if (e.ResultCode.Code == ResultCode.DeviceInvalidated.Code)
+                if (e.HResult == ResultCode.DeviceInvalidated.Code)
                 {
                     // !!! FIXME: possibly disconnected or temporary lost. Recover?
                 }
@@ -440,6 +332,22 @@ namespace Xstream
                 _sourceVoice.FlushSourceBuffers();
                 OpenedAudioDeviceDisconnected();
             }
+        }
+
+        // The audio backends call this when a currently-opened device is lost.
+        private void OpenedAudioDeviceDisconnected()
+        {
+            if (!_enabled)
+                return;
+
+            lock (_lock)
+            {
+                // Ends the audio callback and mark the device as STOPPED, but the
+                // app still needs to close the device to free resources.
+                _enabled = false;
+            }
+
+            // Post the event, if desired
         }
 
         private void WaitDevice()
@@ -458,18 +366,84 @@ namespace Xstream
             }
         }
 
-        // The audio backends call this when a currently-opened device is lost.
-        private void OpenedAudioDeviceDisconnected()
+        public int Update(PCMSample sample)
         {
-            if (!_enabled)
+            fixed (byte* p = sample.SampleData)
+            {
+                return QueueAudio(p, (size_t)sample.SampleData.Length);
+            }
+        }
+
+        private int QueueAudio(void* data, size_t len)
+        {
+            if (!Initialized)
+            {
+                Debug.WriteLine("XAudio2 not initialized yet...");
+                return -1;
+            }
+
+            if (len > 0)
+            {
+                lock (_lock)
+                {
+                    return DataQueuePacket.WriteToDataQueue(_queue, data, len);
+                }
+            }
+
+            return 0;
+        }
+
+        public void Close()
+        {
+            if (!Initialized)
                 return;
 
-            lock (_lock)
+            _shutdown = true;
+            _enabled = false;
+            _thread?.Join();
+
+            if (_workbuf != null)
             {
-                // Ends the audio callback and mark the device as STOPPED, but the
-                // app still needs to close the device to free resources.
-                _enabled = false;
+                Marshal.FreeHGlobal((IntPtr)_workbuf);
+                _workbuf = null;
             }
+
+            DataQueuePacket.FreeDataQueue(_queue);
+
+            CloseDevice();
+        }
+
+        private void CloseDevice()
+        {
+            _sourceVoice?.Stop(PlayFlags.None, XAUDIO2_COMMIT_NOW);
+            _sourceVoice?.FlushSourceBuffers();
+            _sourceVoice?.DestroyVoice();
+            _sourceVoice?.Dispose();
+
+            _xaudio2?.StopEngine();
+
+            _masteringVoice?.DestroyVoice();
+            _masteringVoice?.Dispose();
+
+            _xaudio2?.Dispose();
+
+            _sourceVoice = null;
+            _masteringVoice = null;
+            _xaudio2 = null;
+
+            if (_hidden.handle.IsAllocated)
+            {
+                _hidden.handle.Free();
+                _hidden.device = IntPtr.Zero;
+            }
+
+            if (_hidden.mixbuf != null)
+            {
+                Marshal.FreeHGlobal((IntPtr)_hidden.mixbuf);
+                _hidden.mixbuf = null;
+            }
+
+            _dev = null;
         }
     }
 

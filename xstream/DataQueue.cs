@@ -307,6 +307,11 @@ namespace Xstream
 
             FreeDataQueueList(packet);// free extra packets
         }
+
+        public static size_t CountDataQueue(DataQueue queue)
+        {
+            return queue != null ? queue.queued_bytes : 0;
+        }
     }
 
     class DataQueue

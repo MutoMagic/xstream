@@ -47,7 +47,7 @@ namespace Xstream
             stream.Close();
             int _numToRead = (int)_data.Length;
 
-            _audioRenderer.Initialize(1024);
+            _audioRenderer.Initialize(4096);
 
             Task.Run(() =>
             {
