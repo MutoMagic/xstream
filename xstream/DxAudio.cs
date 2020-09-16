@@ -3,6 +3,7 @@ using SharpDX.Multimedia;
 using SharpDX.XAudio2;
 using System;
 using System.Diagnostics;
+using System.Management;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Xstream.Codec;
@@ -148,6 +149,89 @@ namespace Xstream
             return 0;
         }
 
+        private void OpenDevice()
+        {
+            try
+            {
+                GetGlobalDefaultDevice27();
+            }
+            catch
+            {
+                GetGlobalDefaultDevice();
+            }
+
+            _xaudio2 = new XAudio2(XAudio2Flags.None, ProcessorSpecifier.DefaultProcessor);
+
+            /*
+             * We use XAUDIO2_DEFAULT_CHANNELS instead of _channels. On
+             * Xbox360, this means 5.1 output, but on Windows, it means "figure out
+             * what the system has." It might be preferable to let XAudio2 blast
+             * stereo output to appropriate surround sound configurations
+             * instead of clamping to 2 channels, even though we'll configure the
+             * Source Voice for whatever number of channels you supply.
+             */
+            _masteringVoice = new MasteringVoice(_xaudio2, XAUDIO2_DEFAULT_CHANNELS, _sampleRate, _dev);
+
+            _waveFormat = new WaveFormatEx(SDL_AudioFormat.AUDIO_F32, _channels, _sampleRate);
+            _sourceVoice = new SourceVoice(_xaudio2
+                , _waveFormat.Local
+                , VoiceFlags.NoSampleRateConversion | VoiceFlags.NoPitch
+                , 1.0f
+                , Callbacks.Instance);
+
+            // Initialize all variables that we clean on shutdown
+            _hidden = new PrivateAudioData();
+            _hidden.handle = GCHandle.Alloc(this);
+            _hidden.semaphore = new AutoResetEvent(false);
+
+            _bufferSize = _waveFormat.BlockAlign * _samples;
+            _bufferSize2 = _bufferSize * 2;
+
+            // We feed a Source, it feeds the Mastering, which feeds the device.
+            _hidden.mixlen = _bufferSize;
+            _hidden.mixbuf = (byte*)Marshal.AllocHGlobal(_bufferSize2);
+            _hidden.nextbuf = _hidden.mixbuf;
+            Program.SetMemory(_hidden.mixbuf, _waveFormat.Silence, (uint)_bufferSize2);
+
+            _xaudio2.StartEngine();
+            _sourceVoice.Start(XAUDIO2_COMMIT_NOW);
+        }
+
+        /*
+         * 相关内容已在Version28中移除
+         * 
+         * @see: https://docs.microsoft.com/en-us/windows/win32/xaudio2/xaudio2-versions
+         */
+        private void GetGlobalDefaultDevice27()
+        {
+            _xaudio2 = new XAudio2(XAudio2Version.Version27);
+
+            for (int i = 0; i < _xaudio2.DeviceCount; i++)
+            {
+                DeviceDetails device = _xaudio2.GetDeviceDetails(i);
+
+                if (device.Role == DeviceRole.GlobalDefaultDevice)
+                {
+                    _dev = device.DeviceID;
+                    break;
+                }
+            }
+
+            _xaudio2.Dispose();
+        }
+
+        private void GetGlobalDefaultDevice()
+        {
+            ManagementObjectSearcher mos = new ManagementObjectSearcher("SELECT * FROM Win32_SoundDevice");
+            foreach (ManagementObject mo in mos.Get())
+            {
+                foreach (var p in mo.Properties)
+                {
+                    Console.WriteLine($"{p.Name}:{p.Value}");
+                }
+            }
+        }
+
         public int Update(PCMSample sample)
         {
             fixed (byte* p = sample.SampleData)
@@ -193,59 +277,6 @@ namespace Xstream
             DataQueuePacket.FreeDataQueue(_queue);
 
             return 0;
-        }
-
-        private void OpenDevice()
-        {
-            _xaudio2 = new XAudio2(XAudio2Version.Version27);
-
-            for (int i = 0; i < _xaudio2.DeviceCount; i++)
-            {
-                DeviceDetails device = _xaudio2.GetDeviceDetails(i);
-
-                if (device.Role == DeviceRole.GlobalDefaultDevice)
-                {
-                    _dev = device.DeviceID;
-                    break;
-                }
-            }
-
-            _xaudio2.Dispose();
-            _xaudio2 = new XAudio2(XAudio2Flags.None, ProcessorSpecifier.DefaultProcessor);
-
-            /*
-             * We use XAUDIO2_DEFAULT_CHANNELS instead of _channels. On
-             * Xbox360, this means 5.1 output, but on Windows, it means "figure out
-             * what the system has." It might be preferable to let XAudio2 blast
-             * stereo output to appropriate surround sound configurations
-             * instead of clamping to 2 channels, even though we'll configure the
-             * Source Voice for whatever number of channels you supply.
-             */
-            _masteringVoice = new MasteringVoice(_xaudio2, XAUDIO2_DEFAULT_CHANNELS, _sampleRate, _dev);
-
-            _waveFormat = new WaveFormatEx(SDL_AudioFormat.AUDIO_F32, _channels, _sampleRate);
-            _sourceVoice = new SourceVoice(_xaudio2
-                , _waveFormat.Local
-                , VoiceFlags.NoSampleRateConversion | VoiceFlags.NoPitch
-                , 1.0f
-                , Callbacks.Instance);
-
-            // Initialize all variables that we clean on shutdown
-            _hidden = new PrivateAudioData();
-            _hidden.handle = GCHandle.Alloc(this);
-            _hidden.semaphore = new AutoResetEvent(false);
-
-            _bufferSize = _waveFormat.BlockAlign * _samples;
-            _bufferSize2 = _bufferSize * 2;
-
-            // We feed a Source, it feeds the Mastering, which feeds the device.
-            _hidden.mixlen = _bufferSize;
-            _hidden.mixbuf = (byte*)Marshal.AllocHGlobal(_bufferSize2);
-            _hidden.nextbuf = _hidden.mixbuf;
-            Program.SetMemory(_hidden.mixbuf, _waveFormat.Silence, (uint)_bufferSize2);
-
-            _xaudio2.StartEngine();
-            _sourceVoice.Start(XAUDIO2_COMMIT_NOW);
         }
 
         // The general mixing thread function
@@ -314,7 +345,7 @@ namespace Xstream
         private void BufferQueueDrainCallback(byte* stream, uint len)
         {
             // this function always holds the mixer lock before being called.
-            uint dequeued = DataQueuePacket.ReadFromDataQueue(_queue, stream, len);
+            uint dequeued = (uint)DataQueuePacket.ReadFromDataQueue(_queue, stream, len);
 
             stream += dequeued;
             len -= dequeued;
