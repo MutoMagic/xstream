@@ -259,9 +259,53 @@ namespace Xstream
             }
         }
 
-        public static void ClearDataQueue(DataQueue queue)
+        public static void ClearDataQueue(DataQueue queue, size_t slack)
         {
+            size_t packet_size = queue != null ? queue.packet_size : 1;
+            size_t slackpackets = (slack + (packet_size - 1)) / packet_size;
+            DataQueuePacket packet;
+            DataQueuePacket prev = null;
 
+            if (queue == null)
+            {
+                return;
+            }
+
+            packet = queue.head;
+
+            // merge the available pool and the current queue into one list.
+            if (packet != null)
+            {
+                queue.tail.next = queue.pool;
+            }
+            else
+            {
+                packet = queue.pool;
+            }
+
+            // Remove the queued packets from the device.
+            queue.tail = null;
+            queue.head = null;
+            queue.queued_bytes = 0;
+            queue.pool = packet;
+
+            // Optionally keep some slack in the pool to reduce malloc pressure.
+            for (size_t i = 0; packet != null && i < slackpackets; i++)
+            {
+                prev = packet;
+                packet = packet.next;
+            }
+
+            if (prev != null)
+            {
+                prev.next = null;
+            }
+            else
+            {
+                queue.pool = null;
+            }
+
+            FreeDataQueueList(packet);// free extra packets
         }
     }
 
