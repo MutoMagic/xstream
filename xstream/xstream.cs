@@ -85,7 +85,7 @@ namespace Xstream
             if (_useController && !Input.Initialize(this))
                 throw new InvalidOperationException("Failed to init DirectX Input");
 
-            _audioRenderer.Initialize(1024);
+            _audioRenderer.Initialize(4096);// Good default buffer size
 
             Decoder.Start();
 
