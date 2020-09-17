@@ -113,26 +113,28 @@ namespace Xstream
             try
             {
                 OpenDevice();
+
+                // pool a few packets to start. Enough for two callbacks.
+                _queue = DataQueuePacket.NewDataQueue(SDL_AUDIOBUFFERQUEUE_PACKETLEN, (size_t)(_bufferSize * 2));
+
+                // Allocate a scratch audio buffer
+                _worklen = _bufferSize;
+                _workbuf = (byte*)Marshal.AllocHGlobal(_worklen);
+
+                _thread = new Thread(RunAudio);
+
+                // The audio mixing is always a high priority thread
+                _thread.Priority = ThreadPriority.Highest;
+
+                // Start the audio thread
+                _thread.Start();
             }
-            catch (SharpDXException e)
+            catch (Exception e)
             {
                 Debug.WriteLine($"Failed to open audio: {e.Message}");
                 Close();
                 return 1;
             }
-
-            // pool a few packets to start. Enough for two callbacks.
-            _queue = DataQueuePacket.NewDataQueue(SDL_AUDIOBUFFERQUEUE_PACKETLEN, (size_t)(_bufferSize * 2));
-
-            // Allocate a scratch audio buffer
-            _worklen = _bufferSize;
-            _workbuf = (byte*)Marshal.AllocHGlobal(_worklen);
-
-            _thread = new Thread(RunAudio);
-            // The audio mixing is always a high priority thread
-            _thread.Priority = ThreadPriority.Highest;
-            // Start the audio thread
-            _thread.Start();
 
             Pause(0);// start audio playing.
 
@@ -162,18 +164,18 @@ namespace Xstream
             }
             catch
             {
-                Debug.Assert(_xaudio2 == null || _xaudio2.IsDisposed);
-
                 var enumerator = new MMDeviceEnumerator();
                 var device = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Console);
                 _dev = device?.ID;
             }
 
+            Debug.Assert(_xaudio2 == null || _xaudio2.IsDisposed);
+
             if (_dev == null)
             {
                 // 在CreateMasteringVoice时将szDeviceId指定默认值NULL会使XAudio2选择全局默认音频设备
                 // 由于之前我们已经主动获取设备ID了，为了避免出现意外情况，这里直接抛错就行了
-                throw new SharpDXException(Result.Fail, "没有扬声器");
+                throw new NotSupportedException("没有扬声器");
             }
 
             _xaudio2 = new XAudio2(XAudio2Flags.None, ProcessorSpecifier.DefaultProcessor);
@@ -269,7 +271,7 @@ namespace Xstream
                 }
             }
 
-            _sourceVoice?.Discontinuity();
+            _sourceVoice.Discontinuity();
 
             // Wait for the audio to drain.
             Program.Delay(delay * 2);
