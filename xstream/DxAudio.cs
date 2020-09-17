@@ -425,7 +425,11 @@ namespace Xstream
 
             _shutdown = true;
             _enabled = false;
-            _thread?.Join();
+            if (_thread != null)
+            {
+                _thread.Join();
+                _thread = null;
+            }
 
             if (_workbuf != null)
             {
