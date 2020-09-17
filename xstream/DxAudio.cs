@@ -24,15 +24,17 @@ namespace Xstream
 
         struct PrivateAudioData
         {
-            internal GCHandle handle;
-            internal IntPtr device;
+            //internal GCHandle handle;
+            //internal IntPtr device;
 
+            internal AudioBuffer buffer;
             internal AutoResetEvent semaphore;
             internal byte* mixbuf;
             internal int mixlen;
             internal byte* nextbuf;
         }
 
+        /*
         sealed class Callbacks : CallbackBase, VoiceCallback
         {
             private Callbacks() { }
@@ -62,6 +64,7 @@ namespace Xstream
 
             public void OnVoiceProcessingPassStart(int bytesRequired) { }
         }
+        */
 
         public bool Initialized => _dev != null;
 
@@ -195,13 +198,18 @@ namespace Xstream
                 , _waveFormat
                 , VoiceFlags.NoSampleRateConversion | VoiceFlags.NoPitch
                 , 1.0f
-                , Callbacks.Instance);
+                //, Callbacks.Instance);
+                , true);
 
-            _hidden.handle = GCHandle.Alloc(this);
-            _hidden.device = GCHandle.ToIntPtr(_hidden.handle);
-            _hidden.semaphore = new AutoResetEvent(false);
+            _sourceVoice.BufferEnd += OnBufferEnd;
+            _sourceVoice.VoiceError += OnVoiceError;
 
             _bufferSize = _waveFormat.BlockAlign * _samples;
+
+            //_hidden.handle = GCHandle.Alloc(this);
+            //_hidden.device = GCHandle.ToIntPtr(_hidden.handle);
+            _hidden.buffer = new AudioBuffer();
+            _hidden.semaphore = new AutoResetEvent(false);
 
             // We feed a Source, it feeds the Mastering, which feeds the device.
             _hidden.mixlen = _bufferSize;
@@ -306,10 +314,10 @@ namespace Xstream
                 return;
 
             // Submit the next filled buffer
-            buffer = new AudioBuffer();
+            buffer = _hidden.buffer;
             buffer.AudioBytes = mixlen;
             buffer.AudioDataPointer = (IntPtr)nextbuf;
-            buffer.Context = _hidden.device;
+            //buffer.Context = _hidden.device;
 
             if (nextbuf == mixbuf)
             {
@@ -448,11 +456,11 @@ namespace Xstream
             _masteringVoice = null;
             _xaudio2 = null;
 
-            if (_hidden.handle.IsAllocated)
-            {
-                _hidden.handle.Free();
-                _hidden.device = IntPtr.Zero;
-            }
+            //if (_hidden.handle.IsAllocated)
+            //{
+            //    _hidden.handle.Free();
+            //    _hidden.device = IntPtr.Zero;
+            //}
 
             if (_hidden.mixbuf != null)
             {
@@ -462,6 +470,9 @@ namespace Xstream
 
             _dev = null;
         }
+
+        private void OnBufferEnd(IntPtr context) => _hidden.semaphore.Set();
+        private void OnVoiceError(SourceVoice.VoiceErrorArgs args) => OpenedAudioDeviceDisconnected();
     }
 
     class WaveFormatEx : WaveFormat
