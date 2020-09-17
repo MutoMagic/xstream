@@ -186,7 +186,7 @@ namespace Xstream
              */
             _masteringVoice = new MasteringVoice(_xaudio2, XAUDIO2_DEFAULT_CHANNELS, _sampleRate, _dev);
 
-            _waveFormat = new WaveFormatEx(SDL_AudioFormat.AUDIO_S16, _channels, _sampleRate);
+            _waveFormat = new WaveFormatEx(SDL_AudioFormat.AUDIO_F32, _channels, _sampleRate);
             _sourceVoice = new SourceVoice(_xaudio2
                 , _waveFormat
                 , VoiceFlags.NoSampleRateConversion | VoiceFlags.NoPitch

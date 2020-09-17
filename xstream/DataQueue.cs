@@ -1,6 +1,7 @@
 ﻿using Org.BouncyCastle.Security;
 using System;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 #if WIN32
@@ -23,7 +24,16 @@ namespace Xstream
             public SDL_DataQueuePacket* next;
             //[MarshalAs(UnmanagedType.ByValArray, SizeConst = SDL_VARIABLE_LENGTH_ARRAY)]
             //public byte[] data;
-            public fixed byte data[SDL_VARIABLE_LENGTH_ARRAY];
+            //public fixed byte data[SDL_VARIABLE_LENGTH_ARRAY];
+            public __FixedBuffer data;
+
+            [StructLayout(LayoutKind.Sequential, Size = SDL_VARIABLE_LENGTH_ARRAY)]
+            [CompilerGenerated]
+            [UnsafeValueType]
+            public struct __FixedBuffer
+            {
+                public char FixedElementField;
+            }
         }
 
         internal OutOfMemoryException err;
@@ -45,7 +55,7 @@ namespace Xstream
             {
                 SDL_DataQueuePacket p;// 栈是从高地址到底地址存储数据
                 packetlen += Marshal.SizeOf<SDL_DataQueuePacket>() - (int)(
-                    (size_t)(&p.datalen) - (size_t)(&p.data));
+                    (size_t)(&p.data) - (size_t)(&p.datalen));
 
                 data = (byte*)Marshal.AllocHGlobal(packetlen);
             }
