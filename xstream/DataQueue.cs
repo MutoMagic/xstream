@@ -209,7 +209,7 @@ namespace Xstream
             return packet;
         }
 
-        public static void FreeDataQueueList(DataQueuePacket packet)
+        private static void FreeDataQueueList(DataQueuePacket packet)
         {
             while (packet != null)
             {
@@ -258,15 +258,6 @@ namespace Xstream
             }
 
             return (size_t)(ptr - buf);
-        }
-
-        public static void FreeDataQueue(DataQueue queue)
-        {
-            if (queue != null)
-            {
-                FreeDataQueueList(queue.head);
-                FreeDataQueueList(queue.pool);
-            }
         }
 
         public static void ClearDataQueue(DataQueue queue, size_t slack)
@@ -318,10 +309,16 @@ namespace Xstream
             FreeDataQueueList(packet);// free extra packets
         }
 
-        public static size_t CountDataQueue(DataQueue queue)
+        public static void FreeDataQueue(DataQueue queue)
         {
-            return queue != null ? queue.queued_bytes : 0;
+            if (queue != null)
+            {
+                FreeDataQueueList(queue.head);
+                FreeDataQueueList(queue.pool);
+            }
         }
+
+        public static size_t CountDataQueue(DataQueue queue) => queue != null ? queue.queued_bytes : 0;
     }
 
     class DataQueue

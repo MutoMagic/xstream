@@ -171,7 +171,9 @@ namespace Xstream
 
             if (_dev == null)
             {
-                throw new SharpDXException(Result.Fail, "没有默认扬声器");
+                // 在CreateMasteringVoice时将szDeviceId指定默认值NULL会使XAudio2选择全局默认音频设备
+                // 由于之前我们已经主动获取设备ID了，为了避免出现意外情况，这里直接抛错就行了
+                throw new SharpDXException(Result.Fail, "没有扬声器");
             }
 
             _xaudio2 = new XAudio2(XAudio2Flags.None, ProcessorSpecifier.DefaultProcessor);
@@ -391,6 +393,19 @@ namespace Xstream
             }
 
             return 0;
+        }
+
+        public void ClearQueuedAudio()
+        {
+            if (!Initialized)
+                return;// nothing to do.
+
+            // Blank out the device and release the mutex. Free it afterwards.
+            lock (_lock)
+            {
+                // Keep up to two packets in the pool to reduce future malloc pressure.
+                DataQueuePacket.ClearDataQueue(_queue, SDL_AUDIOBUFFERQUEUE_PACKETLEN * 2);
+            }
         }
 
         public void Close()
