@@ -99,7 +99,7 @@ namespace Xstream
         /*
          * 这个samples是指样本帧中音频缓存区的大小。
          * 样本帧是一块音频数据，其大小指定为 format * channels
-         * 其中format指的是每个样本的位数，这里使用WAVE_FORMAT_IEEE_FLOAT即32位4字节浮点型。
+         * 其中format指的是每个样本的位数，这里使用WAVE_FORMAT_IEEE_FLOAT即4字节(32位)浮点型。
          * 在PCM中format等同于sampleSize
          * 
          * @see: https://my.oschina.net/u/4365632/blog/3319770
