@@ -27,11 +27,13 @@ namespace Xstream
             //internal GCHandle handle;
             //internal IntPtr device;
 
-            internal AudioBuffer buffer;
             internal AutoResetEvent semaphore;
             internal byte* mixbuf;
             internal int mixlen;
             internal byte* nextbuf;
+
+            internal AudioBuffer[] audioBuffersRing;
+            internal int nextBuffer;
         }
 
         /*
@@ -208,7 +210,6 @@ namespace Xstream
 
             //_hidden.handle = GCHandle.Alloc(this);
             //_hidden.device = GCHandle.ToIntPtr(_hidden.handle);
-            _hidden.buffer = new AudioBuffer();
             _hidden.semaphore = new AutoResetEvent(false);
 
             // We feed a Source, it feeds the Mastering, which feeds the device.
@@ -216,6 +217,13 @@ namespace Xstream
             _hidden.mixbuf = (byte*)Marshal.AllocHGlobal(2 * _hidden.mixlen);
             _hidden.nextbuf = _hidden.mixbuf;
             Program.SetMemory(_hidden.mixbuf, _waveFormat.Silence, (size_t)(2 * _hidden.mixlen));
+
+            // Pre-allocate buffers
+            _hidden.audioBuffersRing = new AudioBuffer[2];
+            for (int i = 0; i < _hidden.audioBuffersRing.Length; i++)
+            {
+                _hidden.audioBuffersRing[i] = new AudioBuffer();
+            }
 
             // Start everything playing!
             _xaudio2.StartEngine();
@@ -314,7 +322,7 @@ namespace Xstream
                 return;
 
             // Submit the next filled buffer
-            buffer = _hidden.buffer;
+            buffer = _hidden.audioBuffersRing[_hidden.nextBuffer];
             buffer.AudioBytes = mixlen;
             buffer.AudioDataPointer = (IntPtr)nextbuf;
             //buffer.Context = _hidden.device;
@@ -328,6 +336,8 @@ namespace Xstream
                 nextbuf = mixbuf;
             }
             _hidden.nextbuf = nextbuf;
+
+            _hidden.nextBuffer = ++_hidden.nextBuffer % _hidden.audioBuffersRing.Length;
 
             try
             {
@@ -364,7 +374,7 @@ namespace Xstream
 
         private void WaitDevice()
         {
-            if (_enabled)
+            if (_enabled && _sourceVoice.State.BuffersQueued == _hidden.audioBuffersRing.Length)
             {
                 _hidden.semaphore.WaitOne();
             }
