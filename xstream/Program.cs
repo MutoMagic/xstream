@@ -1,4 +1,3 @@
-using SharpDX.Multimedia;
 using SmartGlass;
 using SmartGlass.Common;
 using SmartGlass.Nano;
@@ -13,7 +12,6 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using XboxWebApi.Authentication;
 using XboxWebApi.Authentication.Model;
-using Xstream.Codec;
 
 #if WIN32
 using size_t = System.UInt32;
@@ -40,26 +38,6 @@ namespace Xstream
         [STAThread]
         static void Main()
         {
-            string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-            SoundStream stream = new SoundStream(File.OpenRead($"{desktop}\\[SHANA]ÈÕ±¾ÈºĞÇ (¥ª¥à¥Ë¥Ğ¥¹) - Áµ¥´¥³¥í.wav"));
-            DxAudio _audioRenderer = new DxAudio(stream.Format.SampleRate, stream.Format.Channels);
-            var _data = stream.ToDataStream();
-            stream.Close();
-            int _numToRead = (int)_data.Length;
-
-            _audioRenderer.Initialize(1024);
-
-            Task.Run(() =>
-            {
-                while (_numToRead > 0)
-                {
-                    byte[] d = _data.ReadRange<byte>(_numToRead < 1024 ? _numToRead : 1024);
-                    _numToRead -= d.Length;
-                    _audioRenderer.Update(new PCMSample(d));
-                }
-                _data.Dispose();
-            });
-
             AllocConsole();
 
             Console.Write("tokenFilePath: ");

@@ -174,7 +174,7 @@ namespace Xstream
                 _dev = device?.ID;
             }
 
-            Debug.Assert(_xaudio2 == null || _xaudio2.IsDisposed);
+            Debug.Assert(_xaudio2 == null || _xaudio2.IsDisposed);// 如果不是可能会导致内存溢出
 
             if (_dev == null)
             {
