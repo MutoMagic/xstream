@@ -150,11 +150,8 @@ namespace Xstream
         {
             try
             {
-                /*
-                 * 相关内容已在Version28中移除
-                 * 
-                 * @see: https://docs.microsoft.com/en-us/windows/win32/xaudio2/xaudio2-versions
-                 */
+                // 相关内容已在Version28中移除，但仍建议保留这块代码，请优先选择XAudio2
+                // 详见：https://docs.microsoft.com/en-us/windows/win32/xaudio2/xaudio2-versions
                 _xaudio2 = new XAudio2(XAudio2Version.Version27);
                 for (int i = 0; i < _xaudio2.DeviceCount; i++)
                 {
