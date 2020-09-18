@@ -27,7 +27,7 @@ namespace Xstream
             //internal GCHandle handle;
             //internal IntPtr device;
 
-            internal AutoResetEvent semaphore;
+            internal Semaphore semaphore;
             internal byte* mixbuf;
             internal int mixlen;
             internal byte* nextbuf;
@@ -210,7 +210,7 @@ namespace Xstream
 
             //_hidden.handle = GCHandle.Alloc(this);
             //_hidden.device = GCHandle.ToIntPtr(_hidden.handle);
-            _hidden.semaphore = new AutoResetEvent(false);
+            _hidden.semaphore = new Semaphore(1, 1);
 
             // We feed a Source, it feeds the Mastering, which feeds the device.
             _hidden.mixlen = _bufferSize;
@@ -336,7 +336,6 @@ namespace Xstream
                 nextbuf = mixbuf;
             }
             _hidden.nextbuf = nextbuf;
-
             _hidden.nextBuffer = ++_hidden.nextBuffer % _hidden.audioBuffersRing.Length;
 
             try
@@ -374,7 +373,7 @@ namespace Xstream
 
         private void WaitDevice()
         {
-            if (_enabled && _sourceVoice.State.BuffersQueued == _hidden.audioBuffersRing.Length)
+            if (_enabled)
             {
                 _hidden.semaphore.WaitOne();
             }
@@ -485,7 +484,7 @@ namespace Xstream
             _dev = null;
         }
 
-        private void OnBufferEnd(IntPtr context) => _hidden.semaphore.Set();
+        private void OnBufferEnd(IntPtr context) => _hidden.semaphore.Release();
         private void OnVoiceError(SourceVoice.VoiceErrorArgs args) => OpenedAudioDeviceDisconnected();
     }
 
