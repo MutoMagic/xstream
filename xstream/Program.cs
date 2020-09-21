@@ -329,29 +329,31 @@ namespace Xstream
 
         public static string GetLastError()
         {
-            StringBuilder sb = new StringBuilder(0xff);
-            uint len = FormatMessage(FORMAT_MESSAGE_FROM_STRING | FORMAT_MESSAGE_ARGUMENT_ARRAY
+            IntPtr lpMsgBuf = IntPtr.Zero;
+            uint len = FormatMessage(
+                FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS
                 , IntPtr.Zero
                 , (uint)Marshal.GetLastWin32Error()
                 , 0
-                , sb
-                , (uint)sb.Capacity
-                , null);
+                , lpMsgBuf
+                , 0
+                , IntPtr.Zero);
             if (len == 0)
             {
-                FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM
-                    , IntPtr.Zero
-                    , (uint)Marshal.GetLastWin32Error()
-                    , 0
-                    , sb
-                    , (uint)sb.Capacity
-                    , null);
-
-                throw new SystemException($"win32 FormatMessage err: {sb}");
+                throw new SystemException($"win32 FormatMessage err: {Marshal.GetLastWin32Error()}");
             }
-            return sb.ToString();
+
+            string sRet = Marshal.PtrToStringAnsi(lpMsgBuf);
+            lpMsgBuf = LocalFree(lpMsgBuf);
+            if (lpMsgBuf != null)
+            {
+                throw new SystemException(GetLastError());
+            }
+            return sRet;
         }
 
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern IntPtr LocalFree(IntPtr hMem);
         [return: MarshalAs(UnmanagedType.Bool)]
         [DllImport("user32.dll")]
         public static extern bool PeekMessage(
@@ -391,9 +393,9 @@ namespace Xstream
             IntPtr lpSource,
             uint dwMessageId,
             uint dwLanguageId,
-            StringBuilder lpBuffer,
+            IntPtr lpBuffer,
             uint nSize,
-            string[] Arguments);
+            IntPtr Arguments);
     }
 
     [StructLayout(LayoutKind.Sequential)]
