@@ -347,13 +347,11 @@ namespace Xstream
             lpMsgBuf = LocalFree(lpMsgBuf);
             if (lpMsgBuf != null)
             {
-                throw new SystemException(GetLastError());
+                throw new SystemException($"win32 LocalFree err: {GetLastError()}");
             }
             return sRet;
         }
 
-        [DllImport("kernel32.dll", SetLastError = true)]
-        public static extern IntPtr LocalFree(IntPtr hMem);
         [return: MarshalAs(UnmanagedType.Bool)]
         [DllImport("user32.dll")]
         public static extern bool PeekMessage(
@@ -396,6 +394,8 @@ namespace Xstream
             IntPtr lpBuffer,
             uint nSize,
             IntPtr Arguments);
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern IntPtr LocalFree(IntPtr hMem);
     }
 
     [StructLayout(LayoutKind.Sequential)]
