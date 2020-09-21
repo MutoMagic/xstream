@@ -154,11 +154,15 @@ namespace Xstream
             if (_threadId > 0 && _thread.IsAlive)
             {
                 bool result = Program.PostThreadMessage(_threadId, WM_(msg), wParam, lParam);
-                Debug.WriteLine($"向{_threadId}线程发送消息失败：{Program.GetLastError()}");
+                if (!result)
+                {
+                    Debug.WriteLine($"向{_threadId}线程发送消息失败：{Program.GetLastError()}");
+                }
                 return result;
             }
 
-            throw new ThreadStateException($"无法向{_threadId}线程发送消息，目标线程当前状态为{_thread.ThreadState}");
+            Debug.WriteLine($"无法向{_threadId}线程发送消息，目标线程当前状态为{_thread.ThreadState}");
+            return false;
         }
 
         static uint WM_(SDL_EventType msg) => (uint)(USER + msg);
