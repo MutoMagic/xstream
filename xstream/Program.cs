@@ -309,7 +309,7 @@ namespace Xstream
 
         static string GetPrivateProfileString(string section, string key, string def, string filePath)
         {
-            StringBuilder sb = new StringBuilder(255);
+            StringBuilder sb = new StringBuilder(0xff);
             GetPrivateProfileString(section, key, def, sb, (uint)sb.Capacity, filePath);
             return sb.ToString();
         }
@@ -328,7 +328,7 @@ namespace Xstream
 
         public static string GetLastError()
         {
-            StringBuilder sb = new StringBuilder(101);
+            StringBuilder sb = new StringBuilder(0xff);
             uint len = FormatMessage(FORMAT_MESSAGE_FROM_STRING
                 , IntPtr.Zero
                 , (uint)Marshal.GetLastWin32Error()
