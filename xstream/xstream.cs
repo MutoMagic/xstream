@@ -122,6 +122,8 @@ namespace Xstream
                 switch (SDL_(m.msg))
                 {
                     case SDL_EventType.QUIT:
+                        Console.WriteLine("Quit, bye!");
+                        _cancellationTokenSource.Cancel();
                         break;
                 }
             }
