@@ -1,5 +1,6 @@
 ﻿using SmartGlass.Common;
 using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Threading;
 using System.Threading.Tasks;
@@ -152,10 +153,12 @@ namespace Xstream
         {
             if (_threadId > 0 && _thread.IsAlive)
             {
-                return Program.PostThreadMessage(_threadId, WM_(msg), wParam, lParam);
+                bool result = Program.PostThreadMessage(_threadId, WM_(msg), wParam, lParam);
+                Debug.WriteLine($"向{_threadId}线程发送消息失败：{Program.GetLastError()}");
+                return result;
             }
 
-            throw new ThreadStateException($"{_threadId}:{_thread.ThreadState}");
+            throw new ThreadStateException($"无法向{_threadId}线程发送消息，目标线程当前状态为{_thread.ThreadState}");
         }
 
         static uint WM_(SDL_EventType msg) => (uint)(USER + msg);

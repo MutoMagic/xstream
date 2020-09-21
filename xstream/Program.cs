@@ -23,6 +23,13 @@ namespace Xstream
 {
     static class Program
     {
+        const uint FORMAT_MESSAGE_ALLOCATE_BUFFER = 0x00000100;
+        const uint FORMAT_MESSAGE_ARGUMENT_ARRAY = 0x00002000;
+        const uint FORMAT_MESSAGE_FROM_HMODULE = 0x00000800;
+        const uint FORMAT_MESSAGE_FROM_STRING = 0x00000400;
+        const uint FORMAT_MESSAGE_FROM_SYSTEM = 0x00001000;
+        const uint FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200;
+
         public static string UserHash = null;
         public static string XToken = null;
 
@@ -319,19 +326,49 @@ namespace Xstream
 
         public static bool PostMessage(SDL_EventType msg) => _gui.PostMessage(msg, IntPtr.Zero, IntPtr.Zero);
 
+        public static string GetLastError()
+        {
+            StringBuilder sb = new StringBuilder(101);
+            uint len = FormatMessage(FORMAT_MESSAGE_FROM_STRING
+                , IntPtr.Zero
+                , (uint)Marshal.GetLastWin32Error()
+                , 0
+                , sb
+                , (uint)sb.Capacity
+                , IntPtr.Zero);
+            if (len == 0)
+            {
+                FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM
+                    , IntPtr.Zero
+                    , (uint)Marshal.GetLastWin32Error()
+                    , 0
+                    , sb
+                    , (uint)sb.Capacity
+                    , IntPtr.Zero);
+
+                throw new SystemException($"win32 FormatMessage err: {sb}");
+            }
+            return sb.ToString();
+        }
+
         [return: MarshalAs(UnmanagedType.Bool)]
         [DllImport("user32.dll")]
-        public static extern bool PeekMessage(out NativeMessage lpMsg, size_t hWnd, uint wMsgFilterMin, uint wMsgFilterMax, uint wRemoveMsg);
+        public static extern bool PeekMessage(
+            out NativeMessage lpMsg,
+            size_t hWnd,
+            uint wMsgFilterMin,
+            uint wMsgFilterMax,
+            uint wRemoveMsg);
         [return: MarshalAs(UnmanagedType.Bool)]
         [DllImport("user32.dll", SetLastError = true)]
         public static extern bool PostThreadMessage(uint threadId, uint msg, IntPtr wParam, IntPtr lParam);
         [DllImport("kernel32.dll")]
         public static extern uint GetCurrentThreadId();
-        [DllImport("Kernel32.dll", EntryPoint = "RtlZeroMemory", SetLastError = false)]
+        [DllImport("Kernel32.dll", EntryPoint = "RtlZeroMemory")]
         public static unsafe extern void ZeroMemory(void* Destination, size_t Length);
-        [DllImport("msvcrt.dll", EntryPoint = "memset", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
+        [DllImport("msvcrt.dll", EntryPoint = "memset", CallingConvention = CallingConvention.Cdecl)]
         public static unsafe extern void* SetMemory(void* dest, int c, size_t byteCount);
-        [DllImport("msvcrt.dll", EntryPoint = "memcpy", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
+        [DllImport("msvcrt.dll", EntryPoint = "memcpy", CallingConvention = CallingConvention.Cdecl)]
         public static unsafe extern void* CopyMemory(void* dest, void* src, size_t count);
         [DllImport("kernel32")]
         public static extern bool AllocConsole();
@@ -347,6 +384,15 @@ namespace Xstream
             string lpFileName);
         [DllImport("kernel32")]
         static extern void Sleep(uint dwMilliseconds);
+        [DllImport("kernel32.dll")]
+        static extern uint FormatMessage(
+            uint dwFlags,
+            IntPtr lpSource,
+            uint dwMessageId,
+            uint dwLanguageId,
+            [Out] StringBuilder lpBuffer,
+            uint nSize,
+            IntPtr Arguments);
     }
 
     [StructLayout(LayoutKind.Sequential)]
