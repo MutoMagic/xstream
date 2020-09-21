@@ -330,13 +330,13 @@ namespace Xstream
         public static string GetLastError()
         {
             StringBuilder sb = new StringBuilder(0xff);
-            uint len = FormatMessage(FORMAT_MESSAGE_FROM_STRING
+            uint len = FormatMessage(FORMAT_MESSAGE_FROM_STRING | FORMAT_MESSAGE_ARGUMENT_ARRAY
                 , IntPtr.Zero
                 , (uint)Marshal.GetLastWin32Error()
                 , 0
                 , sb
                 , (uint)sb.Capacity
-                , IntPtr.Zero);
+                , null);
             if (len == 0)
             {
                 FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM
@@ -345,7 +345,7 @@ namespace Xstream
                     , 0
                     , sb
                     , (uint)sb.Capacity
-                    , IntPtr.Zero);
+                    , null);
 
                 throw new SystemException($"win32 FormatMessage err: {sb}");
             }
@@ -391,9 +391,9 @@ namespace Xstream
             IntPtr lpSource,
             uint dwMessageId,
             uint dwLanguageId,
-            [Out] StringBuilder lpBuffer,
+            StringBuilder lpBuffer,
             uint nSize,
-            IntPtr Arguments);
+            string[] Arguments);
     }
 
     [StructLayout(LayoutKind.Sequential)]
