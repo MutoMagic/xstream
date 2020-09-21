@@ -192,7 +192,7 @@ namespace Xstream
              */
             _masteringVoice = new MasteringVoice(_xaudio2, XAUDIO2_DEFAULT_CHANNELS, _sampleRate, _dev);
 
-            _waveFormat = new WaveFormatEx(SDL_AudioFormat.AUDIO_F32, _channels, _sampleRate);
+            _waveFormat = new WaveFormatEx(SDL_AudioFormat.F32, _channels, _sampleRate);
             _sourceVoice = new SourceVoice(_xaudio2
                 , _waveFormat
                 , VoiceFlags.NoSampleRateConversion | VoiceFlags.NoPitch
@@ -499,10 +499,10 @@ namespace Xstream
             {
                 switch (test_format)
                 {
-                    case SDL_AudioFormat.AUDIO_U8:
-                    case SDL_AudioFormat.AUDIO_S16:
-                    case SDL_AudioFormat.AUDIO_S32:
-                    case SDL_AudioFormat.AUDIO_F32:
+                    case SDL_AudioFormat.U8:
+                    case SDL_AudioFormat.S16:
+                    case SDL_AudioFormat.S32:
+                    case SDL_AudioFormat.F32:
                         format = test_format;
                         valid_format = true;
                         break;
@@ -517,7 +517,7 @@ namespace Xstream
 
             switch (format)
             {
-                case SDL_AudioFormat.AUDIO_U8:
+                case SDL_AudioFormat.U8:
                     Silence = 0x80;
                     break;
                 default:
@@ -570,16 +570,16 @@ namespace Xstream
         static int _formatIdx;
         static int _formatIdxSub;
         static SDL_AudioFormat[][] _formatList = new SDL_AudioFormat[][] {
-            new SDL_AudioFormat[]{SDL_AudioFormat.AUDIO_U8, SDL_AudioFormat.AUDIO_S8, SDL_AudioFormat.AUDIO_S16LSB, SDL_AudioFormat.AUDIO_S16MSB, SDL_AudioFormat.AUDIO_U16LSB,SDL_AudioFormat.AUDIO_U16MSB, SDL_AudioFormat.AUDIO_S32LSB, SDL_AudioFormat.AUDIO_S32MSB, SDL_AudioFormat.AUDIO_F32LSB, SDL_AudioFormat.AUDIO_F32MSB},
-            new SDL_AudioFormat[]{SDL_AudioFormat.AUDIO_S8, SDL_AudioFormat.AUDIO_U8, SDL_AudioFormat.AUDIO_S16LSB, SDL_AudioFormat.AUDIO_S16MSB, SDL_AudioFormat.AUDIO_U16LSB,SDL_AudioFormat.AUDIO_U16MSB, SDL_AudioFormat.AUDIO_S32LSB, SDL_AudioFormat.AUDIO_S32MSB, SDL_AudioFormat.AUDIO_F32LSB, SDL_AudioFormat.AUDIO_F32MSB},
-            new SDL_AudioFormat[]{SDL_AudioFormat.AUDIO_S16LSB, SDL_AudioFormat.AUDIO_S16MSB, SDL_AudioFormat.AUDIO_U16LSB, SDL_AudioFormat.AUDIO_U16MSB, SDL_AudioFormat.AUDIO_S32LSB,SDL_AudioFormat.AUDIO_S32MSB, SDL_AudioFormat.AUDIO_F32LSB, SDL_AudioFormat.AUDIO_F32MSB, SDL_AudioFormat.AUDIO_U8, SDL_AudioFormat.AUDIO_S8},
-            new SDL_AudioFormat[]{SDL_AudioFormat.AUDIO_S16MSB, SDL_AudioFormat.AUDIO_S16LSB, SDL_AudioFormat.AUDIO_U16MSB, SDL_AudioFormat.AUDIO_U16LSB, SDL_AudioFormat.AUDIO_S32MSB,SDL_AudioFormat.AUDIO_S32LSB, SDL_AudioFormat.AUDIO_F32MSB, SDL_AudioFormat.AUDIO_F32LSB, SDL_AudioFormat.AUDIO_U8,SDL_AudioFormat. AUDIO_S8},
-            new SDL_AudioFormat[]{SDL_AudioFormat.AUDIO_U16LSB,SDL_AudioFormat. AUDIO_U16MSB, SDL_AudioFormat.AUDIO_S16LSB,SDL_AudioFormat. AUDIO_S16MSB, SDL_AudioFormat.AUDIO_S32LSB,SDL_AudioFormat.AUDIO_S32MSB, SDL_AudioFormat.AUDIO_F32LSB, SDL_AudioFormat.AUDIO_F32MSB, SDL_AudioFormat.AUDIO_U8, SDL_AudioFormat.AUDIO_S8},
-            new SDL_AudioFormat[]{SDL_AudioFormat.AUDIO_U16MSB, SDL_AudioFormat.AUDIO_U16LSB, SDL_AudioFormat.AUDIO_S16MSB, SDL_AudioFormat.AUDIO_S16LSB, SDL_AudioFormat.AUDIO_S32MSB,SDL_AudioFormat.AUDIO_S32LSB, SDL_AudioFormat.AUDIO_F32MSB, SDL_AudioFormat.AUDIO_F32LSB, SDL_AudioFormat.AUDIO_U8, SDL_AudioFormat.AUDIO_S8},
-            new SDL_AudioFormat[]{SDL_AudioFormat.AUDIO_S32LSB, SDL_AudioFormat.AUDIO_S32MSB, SDL_AudioFormat.AUDIO_F32LSB, SDL_AudioFormat.AUDIO_F32MSB, SDL_AudioFormat.AUDIO_S16LSB,SDL_AudioFormat.AUDIO_S16MSB,SDL_AudioFormat.AUDIO_U16LSB, SDL_AudioFormat.AUDIO_U16MSB, SDL_AudioFormat.AUDIO_U8, SDL_AudioFormat.AUDIO_S8},
-            new SDL_AudioFormat[]{SDL_AudioFormat.AUDIO_S32MSB, SDL_AudioFormat.AUDIO_S32LSB, SDL_AudioFormat.AUDIO_F32MSB, SDL_AudioFormat.AUDIO_F32LSB, SDL_AudioFormat.AUDIO_S16MSB,SDL_AudioFormat.AUDIO_S16LSB, SDL_AudioFormat.AUDIO_U16MSB, SDL_AudioFormat.AUDIO_U16LSB, SDL_AudioFormat.AUDIO_U8, SDL_AudioFormat.AUDIO_S8},
-            new SDL_AudioFormat[]{SDL_AudioFormat.AUDIO_F32LSB, SDL_AudioFormat.AUDIO_F32MSB, SDL_AudioFormat.AUDIO_S32LSB, SDL_AudioFormat.AUDIO_S32MSB, SDL_AudioFormat.AUDIO_S16LSB,SDL_AudioFormat.AUDIO_S16MSB, SDL_AudioFormat.AUDIO_U16LSB, SDL_AudioFormat.AUDIO_U16MSB, SDL_AudioFormat.AUDIO_U8, SDL_AudioFormat.AUDIO_S8},
-            new SDL_AudioFormat[]{SDL_AudioFormat.AUDIO_F32MSB, SDL_AudioFormat.AUDIO_F32LSB, SDL_AudioFormat.AUDIO_S32MSB, SDL_AudioFormat.AUDIO_S32LSB, SDL_AudioFormat.AUDIO_S16MSB,SDL_AudioFormat.AUDIO_S16LSB, SDL_AudioFormat.AUDIO_U16MSB, SDL_AudioFormat.AUDIO_U16LSB,SDL_AudioFormat. AUDIO_U8, SDL_AudioFormat.AUDIO_S8},
+            new SDL_AudioFormat[]{SDL_AudioFormat.U8, SDL_AudioFormat.S8, SDL_AudioFormat.S16LSB, SDL_AudioFormat.S16MSB, SDL_AudioFormat.U16LSB,SDL_AudioFormat.U16MSB, SDL_AudioFormat.S32LSB, SDL_AudioFormat.S32MSB, SDL_AudioFormat.F32LSB, SDL_AudioFormat.F32MSB},
+            new SDL_AudioFormat[]{SDL_AudioFormat.S8, SDL_AudioFormat.U8, SDL_AudioFormat.S16LSB, SDL_AudioFormat.S16MSB, SDL_AudioFormat.U16LSB,SDL_AudioFormat.U16MSB, SDL_AudioFormat.S32LSB, SDL_AudioFormat.S32MSB, SDL_AudioFormat.F32LSB, SDL_AudioFormat.F32MSB},
+            new SDL_AudioFormat[]{SDL_AudioFormat.S16LSB, SDL_AudioFormat.S16MSB, SDL_AudioFormat.U16LSB, SDL_AudioFormat.U16MSB, SDL_AudioFormat.S32LSB,SDL_AudioFormat.S32MSB, SDL_AudioFormat.F32LSB, SDL_AudioFormat.F32MSB, SDL_AudioFormat.U8, SDL_AudioFormat.S8},
+            new SDL_AudioFormat[]{SDL_AudioFormat.S16MSB, SDL_AudioFormat.S16LSB, SDL_AudioFormat.U16MSB, SDL_AudioFormat.U16LSB, SDL_AudioFormat.S32MSB,SDL_AudioFormat.S32LSB, SDL_AudioFormat.F32MSB, SDL_AudioFormat.F32LSB, SDL_AudioFormat.U8,SDL_AudioFormat. S8},
+            new SDL_AudioFormat[]{SDL_AudioFormat.U16LSB,SDL_AudioFormat. U16MSB, SDL_AudioFormat.S16LSB,SDL_AudioFormat. S16MSB, SDL_AudioFormat.S32LSB,SDL_AudioFormat.S32MSB, SDL_AudioFormat.F32LSB, SDL_AudioFormat.F32MSB, SDL_AudioFormat.U8, SDL_AudioFormat.S8},
+            new SDL_AudioFormat[]{SDL_AudioFormat.U16MSB, SDL_AudioFormat.U16LSB, SDL_AudioFormat.S16MSB, SDL_AudioFormat.S16LSB, SDL_AudioFormat.S32MSB,SDL_AudioFormat.S32LSB, SDL_AudioFormat.F32MSB, SDL_AudioFormat.F32LSB, SDL_AudioFormat.U8, SDL_AudioFormat.S8},
+            new SDL_AudioFormat[]{SDL_AudioFormat.S32LSB, SDL_AudioFormat.S32MSB, SDL_AudioFormat.F32LSB, SDL_AudioFormat.F32MSB, SDL_AudioFormat.S16LSB,SDL_AudioFormat.S16MSB,SDL_AudioFormat.U16LSB, SDL_AudioFormat.U16MSB, SDL_AudioFormat.U8, SDL_AudioFormat.S8},
+            new SDL_AudioFormat[]{SDL_AudioFormat.S32MSB, SDL_AudioFormat.S32LSB, SDL_AudioFormat.F32MSB, SDL_AudioFormat.F32LSB, SDL_AudioFormat.S16MSB,SDL_AudioFormat.S16LSB, SDL_AudioFormat.U16MSB, SDL_AudioFormat.U16LSB, SDL_AudioFormat.U8, SDL_AudioFormat.S8},
+            new SDL_AudioFormat[]{SDL_AudioFormat.F32LSB, SDL_AudioFormat.F32MSB, SDL_AudioFormat.S32LSB, SDL_AudioFormat.S32MSB, SDL_AudioFormat.S16LSB,SDL_AudioFormat.S16MSB, SDL_AudioFormat.U16LSB, SDL_AudioFormat.U16MSB, SDL_AudioFormat.U8, SDL_AudioFormat.S8},
+            new SDL_AudioFormat[]{SDL_AudioFormat.F32MSB, SDL_AudioFormat.F32LSB, SDL_AudioFormat.S32MSB, SDL_AudioFormat.S32LSB, SDL_AudioFormat.S16MSB,SDL_AudioFormat.S16LSB, SDL_AudioFormat.U16MSB, SDL_AudioFormat.U16LSB,SDL_AudioFormat. U8, SDL_AudioFormat.S8},
         };
 
         public static SDL_AudioFormat FirstAudioFormat(this SDL_AudioFormat format)
@@ -609,27 +609,27 @@ namespace Xstream
 
     enum SDL_AudioFormat
     {
-        AUDIO_U8 = 0x0008,
-        AUDIO_S8 = 0x8008,
-        AUDIO_U16LSB = 0x0010,
-        AUDIO_S16LSB = 0x8010,
-        AUDIO_U16MSB = 0x1010,
-        AUDIO_S16MSB = 0x9010,
-        AUDIO_U16 = AUDIO_U16LSB,
-        AUDIO_S16 = AUDIO_S16LSB,
+        U8 = 0x0008,
+        S8 = 0x8008,
+        U16LSB = 0x0010,
+        S16LSB = 0x8010,
+        U16MSB = 0x1010,
+        S16MSB = 0x9010,
+        U16 = U16LSB,
+        S16 = S16LSB,
 
-        AUDIO_S32LSB = 0x8020,
-        AUDIO_S32MSB = 0x9020,
-        AUDIO_S32 = AUDIO_S32LSB,
+        S32LSB = 0x8020,
+        S32MSB = 0x9020,
+        S32 = S32LSB,
 
-        AUDIO_F32LSB = 0x8120,
-        AUDIO_F32MSB = 0x9120,
-        AUDIO_F32 = AUDIO_F32LSB,
+        F32LSB = 0x8120,
+        F32MSB = 0x9120,
+        F32 = F32LSB,
 
         // x86 little-endian
-        AUDIO_U16SYS = AUDIO_U16LSB,
-        AUDIO_S16SYS = AUDIO_S16LSB,
-        AUDIO_S32SYS = AUDIO_S32LSB,
-        AUDIO_F32SYS = AUDIO_F32LSB
+        U16SYS = U16LSB,
+        S16SYS = S16LSB,
+        S32SYS = S32LSB,
+        F32SYS = F32LSB
     }
 }

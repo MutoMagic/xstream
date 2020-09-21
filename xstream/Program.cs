@@ -308,6 +308,14 @@ namespace Xstream
             Sleep(ms);
         }
 
+        [return: MarshalAs(UnmanagedType.Bool)]
+        [DllImport("user32.dll")]
+        public static extern bool PeekMessage(out NativeMessage lpMsg, size_t hWnd, uint wMsgFilterMin, uint wMsgFilterMax, uint wRemoveMsg);
+        [return: MarshalAs(UnmanagedType.Bool)]
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern bool PostThreadMessage(uint threadId, uint msg, IntPtr wParam, IntPtr lParam);
+        [DllImport("kernel32.dll")]
+        public static extern uint GetCurrentThreadId();
         [DllImport("Kernel32.dll", EntryPoint = "RtlZeroMemory", SetLastError = false)]
         public static unsafe extern void ZeroMemory(void* Destination, size_t Length);
         [DllImport("msvcrt.dll", EntryPoint = "memset", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
@@ -328,5 +336,17 @@ namespace Xstream
             string lpFileName);
         [DllImport("kernel32")]
         static extern void Sleep(uint dwMilliseconds);
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct NativeMessage
+    {
+        public IntPtr handle;
+        public uint msg;
+        public IntPtr wParam;
+        public IntPtr lParam;
+        public uint time;
+        public System.Drawing.Point p;
+        //public uint lPrivate;
     }
 }

@@ -82,6 +82,12 @@ namespace Xstream
             _directInput = new DirectInput();
         }
 
+        public bool Initialize(Form f)
+        {
+            _hwnd = f.Handle;
+            return Initialize();
+        }
+
         private bool Initialize()
         {
             _joystickGuidList.Clear();
@@ -316,12 +322,6 @@ namespace Xstream
             }
 
             return null;
-        }
-
-        public bool Initialize(Form f)
-        {
-            _hwnd = f.Handle;
-            return Initialize();
         }
     }
 }
