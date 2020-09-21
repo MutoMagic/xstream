@@ -262,6 +262,10 @@ namespace Xstream
 
             // Run a mainloop, to gather controller input events or similar
 
+            Application.SetHighDpiMode(HighDpiMode.SystemAware);
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+
             _gui = new Xstream(GetSettingBool("useController"), config);
             _gui.KeyPreview = Program.GetSettingBool("useController.KeyPreview");
             _gui.KeyDown += (sender, e) =>
@@ -269,9 +273,6 @@ namespace Xstream
                 MessageBox.Show("Form.KeyPress: '" + e.KeyCode + "' consumed.");
             };
 
-            Application.SetHighDpiMode(HighDpiMode.SystemAware);
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(_gui);
 
             // finally (dirty)
