@@ -32,6 +32,8 @@ namespace Xstream
         public static VideoFormat VideoFormat = null;
         public static AudioFormat ChatAudioFormat = null;
 
+        static Xstream _gui;
+
         /// <summary>
         ///  The main entry point for the application.
         /// </summary>
@@ -249,14 +251,21 @@ namespace Xstream
                 return;
             }
 
+            FreeConsole();
+
             // Run a mainloop, to gather controller input events or similar
 
-            FreeConsole();
+            _gui = new Xstream(GetSettingBool("useController"), config);
+            _gui.KeyPreview = Program.GetSettingBool("useController.KeyPreview");
+            _gui.KeyDown += (sender, e) =>
+            {
+                MessageBox.Show("Form.KeyPress: '" + e.KeyCode + "' consumed.");
+            };
 
             Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Xstream(GetSettingBool("useController"), config));
+            Application.Run(_gui);
 
             // finally (dirty)
             Process.GetCurrentProcess().Kill();
@@ -305,8 +314,10 @@ namespace Xstream
             uint max_delay = 0xffffffffU / 1000;
             if (ms > max_delay)
                 ms = max_delay;
-            Sleep(ms);
+            Sleep(ms);// Thread.Sleep(millisecondsTimeout < 0) »á±¨´í
         }
+
+        public static bool PostMessage(SDL_EventType msg) => _gui.PostMessage(msg, IntPtr.Zero, IntPtr.Zero);
 
         [return: MarshalAs(UnmanagedType.Bool)]
         [DllImport("user32.dll")]

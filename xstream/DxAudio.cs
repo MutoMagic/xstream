@@ -366,6 +366,7 @@ namespace Xstream
             }
 
             // Post the event, if desired
+            Program.PostMessage(SDL_EventType.AUDIODEVICEREMOVED);
         }
 
         private void WaitDevice()

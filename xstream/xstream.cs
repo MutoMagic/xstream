@@ -18,7 +18,6 @@ namespace Xstream
         GamestreamConfiguration _config;
 
         readonly CancellationTokenSource _cancellationTokenSource;
-
         DxAudio _audioRenderer;
         DxVideo _videoRenderer;
         FFmpegDecoder _decoder;
@@ -35,12 +34,6 @@ namespace Xstream
             _config = config;
 
             ClientSize = new Size(_config.VideoMaximumWidth, _config.VideoMaximumHeight);
-
-            KeyPreview = Program.GetSettingBool("useController.KeyPreview");
-            KeyDown += (sender, e) =>
-            {
-                MessageBox.Show("Form.KeyPress: '" + e.KeyCode + "' consumed.");
-            };
 
             InitializeComponent();
 
@@ -126,7 +119,7 @@ namespace Xstream
                     continue;
                 }
 
-                switch ((SDL_EventType)(m.msg - USER))
+                switch (SDL_(m.msg))
                 {
                     case SDL_EventType.QUIT:
                         break;
@@ -157,15 +150,31 @@ namespace Xstream
         {
             if (_threadId > 0 && _thread.IsAlive)
             {
-                return Program.PostThreadMessage(_threadId, (uint)(USER + msg), wParam, lParam);
+                return Program.PostThreadMessage(_threadId, WM_(msg), wParam, lParam);
             }
 
             throw new ThreadStateException($"{_threadId}:{_thread.ThreadState}");
         }
+
+        static uint WM_(SDL_EventType msg) => (uint)(USER + msg);
+        static SDL_EventType SDL_(uint msg) => (SDL_EventType)(msg - USER);
     }
 
     enum SDL_EventType : uint
     {
-        QUIT = 0x100,
+        // Application events
+        QUIT = 0x100,// < User-requested quit
+
+        // Audio hotplug events
+        AUDIODEVICEADDED = 0x1100,// < A new audio device is available
+        AUDIODEVICEREMOVED, // < An audio device has been removed.
+
+        // Game controller events
+        CONTROLLERAXISMOTION = 0x650,// < Game controller axis motion
+        CONTROLLERBUTTONDOWN,// < Game controller button pressed
+        CONTROLLERBUTTONUP,// < Game controller button released
+        CONTROLLERDEVICEADDED,// < A new Game controller has been inserted into the system
+        CONTROLLERDEVICEREMOVED,// < An opened Game controller has been removed
+        CONTROLLERDEVICEREMAPPED// < The controller mapping was updated
     }
 }
