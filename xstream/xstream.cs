@@ -35,6 +35,7 @@ namespace Xstream
             _config = config;
 
             ClientSize = new Size(_config.VideoMaximumWidth, _config.VideoMaximumHeight);
+            Icon = Icon.ExtractAssociatedIcon($"{AppDomain.CurrentDomain.BaseDirectory}/Images/icon.png");
 
             InitializeComponent();
 
@@ -92,7 +93,7 @@ namespace Xstream
                 throw new InvalidOperationException("Failed to init DirectX Input");
 
             _audioRenderer.Initialize(4096);// Good default buffer size
-            //_videoRenderer.Initialize();
+            _videoRenderer.Initialize();
 
             _decoder.Start();
 

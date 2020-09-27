@@ -7,7 +7,7 @@ namespace Xstream
 {
     class DxVideo
     {
-        Device d3dDevice;
+        Device _d3dDevice;
 
         Rectangle _rectOrigin;
         string _fontSourceRegular;
@@ -45,11 +45,16 @@ namespace Xstream
              *
              * @see https://docs.microsoft.com/en-us/windows/win32/api/d3d9/nf-d3d9-idirect3d9-createdevice
              */
-            d3dDevice = new Device(new Direct3D(), 0, DeviceType.Hardware, f.Handle, CreateFlags.HardwareVertexProcessing, pp);
+            _d3dDevice = new Device(new Direct3D(), 0, DeviceType.Hardware, f.Handle, CreateFlags.HardwareVertexProcessing, pp);
 
             _rectOrigin = new Rectangle(0, 0, width, height);
             _fontSourceRegular = $"{AppDomain.CurrentDomain.BaseDirectory}Fonts/Xolonium-Regular.ttf";
             _fontSourceBold = $"{AppDomain.CurrentDomain.BaseDirectory}Fonts/Xolonium-Bold.ttf";
+        }
+
+        public void Initialize()
+        {
+
         }
     }
 }
