@@ -267,7 +267,7 @@ namespace Xstream
             Application.SetCompatibleTextRenderingDefault(false);
 
             _gui = new Xstream(GetSettingBool("useController"), config);
-            _gui.KeyPreview = Program.GetSettingBool("useController.KeyPreview");
+            _gui.KeyPreview = GetSettingBool("useController.KeyPreview");
             _gui.KeyDown += (sender, e) =>
             {
                 MessageBox.Show("Form.KeyPress: '" + e.KeyCode + "' consumed.");
