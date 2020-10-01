@@ -35,7 +35,8 @@ namespace Xstream
             _config = config;
 
             ClientSize = new Size(_config.VideoMaximumWidth, _config.VideoMaximumHeight);
-            Icon = Icon.ExtractAssociatedIcon($"{AppDomain.CurrentDomain.BaseDirectory}/Images/icon.png");
+            Bitmap map = new Bitmap($"{AppDomain.CurrentDomain.BaseDirectory}/Images/icon.png");
+            Icon = Icon.FromHandle(map.GetHicon());
 
             InitializeComponent();
 
@@ -127,6 +128,8 @@ namespace Xstream
                         Debug.WriteLine("Quit, bye!");
                         _cancellationTokenSource.Cancel();
                         break;
+                    default:
+                        break;
                 }
             }
 
@@ -138,6 +141,8 @@ namespace Xstream
 
             _audioRenderer.Close();
             //_decoder.Dispose();
+
+            Program.DestroyIcon(Icon.Handle);
         }
 
         protected override void WndProc(ref Message m)

@@ -352,16 +352,18 @@ namespace Xstream
             return sRet;
         }
 
-        [return: MarshalAs(UnmanagedType.Bool)]
         [DllImport("user32.dll")]
+        public extern static bool DestroyIcon(IntPtr handle);
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool PeekMessage(
             out NativeMessage lpMsg,
             size_t hWnd,
             uint wMsgFilterMin,
             uint wMsgFilterMax,
             uint wRemoveMsg);
-        [return: MarshalAs(UnmanagedType.Bool)]
         [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool PostThreadMessage(uint threadId, uint msg, IntPtr wParam, IntPtr lParam);
         [DllImport("kernel32.dll")]
         public static extern uint GetCurrentThreadId();

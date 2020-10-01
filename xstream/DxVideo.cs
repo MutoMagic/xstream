@@ -54,7 +54,10 @@ namespace Xstream
 
         public void Initialize()
         {
+        }
 
+        public void Close()
+        {
         }
     }
 }
