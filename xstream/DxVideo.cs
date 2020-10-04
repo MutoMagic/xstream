@@ -5,8 +5,11 @@ using System.Windows.Forms;
 
 namespace Xstream
 {
-    class DxVideo
+    unsafe class DxVideo
     {
+        const int D3DADAPTER_DEFAULT = 0;// Used to specify the primary display adapter.
+
+        Direct3D _d3d;
         Device _d3dDevice;
 
         Rectangle _rectOrigin;
@@ -15,8 +18,13 @@ namespace Xstream
 
         public DxVideo(int width, int height, Form f)
         {
+            _d3d = new Direct3D();
+
             PresentParameters pp = new PresentParameters();
-            pp.Windowed = true;// 指定窗口模式。True = 窗口模式；False = 全屏模式
+            pp.DeviceWindowHandle = f.Handle;
+            pp.BackBufferWidth = width;
+            pp.BackBufferHeight = height;
+            pp.BackBufferCount = 1;// 后备缓冲区的数量。通常设为“1”，即只有一个后备表面。
             /*
              * 指定系统如何将后台缓冲区的内容复制到前台缓冲区，从而在屏幕上显示。它的值有：
              * D3DSWAPEFFECT_DISCARD: 清除后台缓存的内容。
@@ -25,6 +33,31 @@ namespace Xstream
              * 一般情况下使用D3DSWAPEFFECT_DISCARD
              */
             pp.SwapEffect = SwapEffect.Discard;
+            pp.Windowed = true;// 指定窗口模式。True = 窗口模式；False = 全屏模式
+            /*
+             * 显示适配器刷新屏幕的速率。该值取决于应用程序运行的模式：
+             * 对于窗口模式，刷新率必须为0。
+             * 对于全屏模式，刷新率是EnumAdapterModes返回的刷新率之一。
+             */
+            pp.FullScreenRefreshRateInHz = 0;
+            /*
+             * 交换链的后缓冲区可以提供给前缓冲区的最大速率。可以用以下方式：
+             * D3DPRESENT_INTERVAL_DEFAULT: 这几乎等同于D3DPRESENT_INTERVAL_ONE。
+             * D3DPRESENT_INTERVAL_ONE: 垂直同步。当前的操作不会比刷新屏幕更频繁地受到影响。
+             * D3DPRESENT_INTERVAL_IMMEDIATE: 以实时的方式来显示渲染画面。
+             */
+            pp.PresentationInterval = PresentInterval.One;
+
+            CreateFlags device_flags = CreateFlags.FpuPreserve;
+            Capabilities caps = _d3d.GetDeviceCaps(D3DADAPTER_DEFAULT, DeviceType.Hardware);
+            if ((caps.DeviceCaps & DeviceCaps.HWTransformAndLight) != 0)
+            {
+                device_flags |= CreateFlags.HardwareVertexProcessing;
+            }
+            else
+            {
+                device_flags |= CreateFlags.SoftwareVertexProcessing;
+            }
 
             /*
              * @param adapter       表示显示适配器的序号。D3DADAPTER_DEFAULT(0)始终是主要的显示适配器。
@@ -45,7 +78,12 @@ namespace Xstream
              *
              * @see https://docs.microsoft.com/en-us/windows/win32/api/d3d9/nf-d3d9-idirect3d9-createdevice
              */
-            _d3dDevice = new Device(new Direct3D(), 0, DeviceType.Hardware, f.Handle, CreateFlags.HardwareVertexProcessing, pp);
+            _d3dDevice = new Device(_d3d
+                , D3DADAPTER_DEFAULT
+                , DeviceType.Hardware
+                , f.Handle
+                , device_flags
+                , pp);
 
             _rectOrigin = new Rectangle(0, 0, width, height);
             _fontSourceRegular = $"{AppDomain.CurrentDomain.BaseDirectory}Fonts/Xolonium-Regular.ttf";
@@ -54,6 +92,7 @@ namespace Xstream
 
         public void Initialize()
         {
+            _d3dDevice.VertexShader = null;
         }
 
         public void Close()

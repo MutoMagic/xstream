@@ -270,7 +270,17 @@ namespace Xstream
             _gui.KeyPreview = GetSettingBool("useController.KeyPreview");
             _gui.KeyDown += (sender, e) =>
             {
-                MessageBox.Show("Form.KeyPress: '" + e.KeyCode + "' consumed.");
+                if (!_gui.KeyPreview)
+                    return;
+
+                e.SuppressKeyPress = true;
+
+                switch (e.KeyCode)
+                {
+                    default:
+                        MessageBox.Show("Form.KeyPress: '" + e.KeyCode + "' consumed.");
+                        break;
+                }
             };
 
             Application.Run(_gui);
