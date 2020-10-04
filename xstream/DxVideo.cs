@@ -58,6 +58,7 @@ namespace Xstream
             {
                 device_flags |= CreateFlags.SoftwareVertexProcessing;
             }
+            //device_flags |= CreateFlags.Multithreaded;
 
             /*
              * @param adapter       表示显示适配器的序号。D3DADAPTER_DEFAULT(0)始终是主要的显示适配器。
