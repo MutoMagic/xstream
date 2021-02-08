@@ -15,10 +15,8 @@ namespace Xstream
         const uint USER = 0x0400;
         const int PM_REMOVE = 0x0001;
 
-        bool _useController;
-        GamestreamConfiguration _config;
-
         readonly CancellationTokenSource _cancellationTokenSource;
+
         DxAudio _audioRenderer;
         DxVideo _videoRenderer;
         FFmpegDecoder _decoder;
@@ -29,16 +27,38 @@ namespace Xstream
         Thread _thread;
         uint _threadId;
 
-        public Xstream(bool useController, GamestreamConfiguration config)
+        delegate IntPtr GetHandleCallback();
+
+        public Xstream(int w,int h)
         {
-            _useController = useController;
-            _config = config;
-
-            ClientSize = new Size(_config.VideoMaximumWidth, _config.VideoMaximumHeight);
-            Bitmap map = new Bitmap($"{AppDomain.CurrentDomain.BaseDirectory}/Images/icon.png");
-            Icon = Icon.FromHandle(map.GetHicon());
-
             InitializeComponent();
+
+            ClientSize = new Size(w, h);
+            if (Config.Fullscreen && Config.Borderless)
+            {
+                WindowState = FormWindowState.Maximized;
+                FormBorderStyle = FormBorderStyle.None;
+            }
+            else if (Config.Fullscreen)
+            {
+                // TODO
+            }
+
+            KeyPreview = Config.KeyPreview;
+            KeyDown += (sender, e) =>
+            {
+                if (!KeyPreview)
+                    return;
+
+                e.SuppressKeyPress = true;
+
+                switch (e.KeyCode)
+                {
+                    default:
+                        MessageBox.Show("Form.KeyPress: '" + e.KeyCode + "' consumed.");
+                        break;
+                }
+            };
 
             // DirectX / FFMPEG setup
 
@@ -47,23 +67,33 @@ namespace Xstream
             _audioRenderer = new DxAudio(
                 (int)Program.AudioFormat.SampleRate, (int)Program.AudioFormat.Channels);
             _videoRenderer = new DxVideo(
-                (int)Program.VideoFormat.Width, (int)Program.VideoFormat.Height, this);
+                (int)Program.VideoFormat.Width, (int)Program.VideoFormat.Height);
 
             _decoder = new FFmpegDecoder(Program.Nano, Program.AudioFormat, Program.VideoFormat);
 
-            if (_useController)
-            {
-                _input = new DxInput($"{AppDomain.CurrentDomain.BaseDirectory}/gamecontrollerdb.txt");
-                _handleInputEvent += _input.HandleInput;
-            }
-
             Program.Nano.AudioFrameAvailable += _decoder.ConsumeAudioData;
             Program.Nano.VideoFrameAvailable += _decoder.ConsumeVideoData;
+
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+
+            if (Config.UseController)
+            {
+                _input = new DxInput($"{baseDir}/gamecontrollerdb.txt");
+                _handleInputEvent += _input.HandleInput;
+            }
 
             Shown += (object sender, EventArgs e) =>
             {
                 _thread = new Thread(MainLoop);
                 _thread.Start();
+            };
+
+            Bitmap map = new Bitmap($"{baseDir}/Images/icon.png");
+            Icon = Icon.FromHandle(map.GetHicon());
+
+            FormClosed += (object sender, FormClosedEventArgs e) =>
+            {
+                Native.DestroyIcon(Icon.Handle);
             };
         }
 
@@ -88,17 +118,17 @@ namespace Xstream
 
         public void MainLoop()
         {
-            _threadId = Program.GetCurrentThreadId();
+            _threadId = Native.GetCurrentThreadId();
 
-            if (_useController && !_input.Initialize(this))
+            if (Config.UseController && !_input.Initialize(this))
                 throw new InvalidOperationException("Failed to init DirectX Input");
 
             _audioRenderer.Initialize(4096);// Good default buffer size
-            _videoRenderer.Initialize();
+            _videoRenderer.Initialize(this);
 
             _decoder.Start();
 
-            if (_useController)
+            if (Config.UseController)
             {
                 StartInputFrameSendingTask();
             }
@@ -117,7 +147,7 @@ namespace Xstream
                 //    _videoRenderer.Update(frame);
                 //}
 
-                if (!Program.PeekMessage(out NativeMessage m, 0, 0, 0, PM_REMOVE))
+                if (!Native.PeekMessage(out Native.NativeMessage m, 0, 0, 0, PM_REMOVE))
                 {
                     continue;
                 }
@@ -134,15 +164,33 @@ namespace Xstream
             }
 
             // closes input controller
-            if (_useController)
+            if (Config.UseController)
             {
                 _input.CloseController();
             }
 
             _audioRenderer.Close();
             //_decoder.Dispose();
+        }
 
-            Program.DestroyIcon(Icon.Handle);
+        public IntPtr GetHandle()
+        {
+            if (InvokeRequired)
+            {
+                // 解决窗体关闭时出现“访问已释放句柄”的异常
+                while (!IsHandleCreated)
+                {
+                    if (Disposing || IsDisposed)
+                        return IntPtr.Zero;
+                }
+
+                GetHandleCallback d = new GetHandleCallback(GetHandle);
+                return (IntPtr)Invoke(d, null);
+            }
+            else
+            {
+                return Handle;
+            }
         }
 
         protected override void WndProc(ref Message m)
@@ -155,14 +203,16 @@ namespace Xstream
             base.WndProc(ref m);
         }
 
+        internal bool PostMessage(SDL_EventType msg) => PostMessage(msg, IntPtr.Zero, IntPtr.Zero);
+
         internal bool PostMessage(SDL_EventType msg, IntPtr wParam, IntPtr lParam)
         {
             if (_threadId > 0 && _thread.IsAlive)
             {
-                bool result = Program.PostThreadMessage(_threadId, WM_(msg), wParam, lParam);
+                bool result = Native.PostThreadMessage(_threadId, WM_(msg), wParam, lParam);
                 if (!result)
                 {
-                    Debug.WriteLine($"向{_threadId}线程发送消息失败：{Program.GetLastError()}");
+                    Debug.WriteLine($"向{_threadId}线程发送消息失败：{Native.GetLastError()}");
                 }
                 return result;
             }

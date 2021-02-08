@@ -6,40 +6,120 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using XboxWebApi.Authentication;
 using XboxWebApi.Authentication.Model;
-
-#if WIN32
-using size_t = System.UInt32;
-#else
-using size_t = System.UInt64;
-#endif
 
 namespace Xstream
 {
     static class Program
     {
-        const uint FORMAT_MESSAGE_ALLOCATE_BUFFER = 0x00000100;
-        //const uint FORMAT_MESSAGE_ARGUMENT_ARRAY = 0x00002000;
-        //const uint FORMAT_MESSAGE_FROM_HMODULE = 0x00000800;
-        //const uint FORMAT_MESSAGE_FROM_STRING = 0x00000400;
-        const uint FORMAT_MESSAGE_FROM_SYSTEM = 0x00001000;
-        const uint FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200;
+        public static NanoClient Nano { get; private set; }
+        public static AudioFormat AudioFormat { get; private set; }
+        public static VideoFormat VideoFormat { get; private set; }
 
-        public static string UserHash = null;
-        public static string XToken = null;
+        static string _userHash;
+        static string _xToken;
 
-        public static NanoClient Nano = null;
+        /// <summary>
+        /// Authenticate with Xbox Live / refresh tokens
+        /// </summary>
+        /// <param name="tokenFilePath">File to json tokenfile</param>
+        /// <param name="ae">AuthenticateException</param>
+        /// <returns>True if successful, otherwise false</returns>
+        static bool Authenticate(string tokenFilePath, out Exception ae)
+        {
+            ae = null;
 
-        public static AudioFormat AudioFormat = null;
-        public static VideoFormat VideoFormat = null;
-        public static AudioFormat ChatAudioFormat = null;
+            if (string.IsNullOrEmpty(tokenFilePath))
+            {
+                ae = new ArgumentNullException("tokenFilePath IsNullOrEmpty");
+                return false;
+            }
 
-        static Xstream _gui;
+            FileStream fs = new FileStream(tokenFilePath, FileMode.Open);
+            AuthenticationService auth = AuthenticationService.LoadFromFile(fs);
+            try
+            {
+                auth.Authenticate();
+            }
+            catch (Exception e)
+            {
+                ae = e;
+                return false;
+            }
+            fs.Close();
+
+            _userHash = auth.XToken.UserInformation.Userhash;
+            _xToken = auth.XToken.Jwt;
+            return true;
+        }
+
+        static bool Authenticate(string url, string tokenFilePath
+            , out AuthenticationService auth, out Exception ae
+            , out FileStream tokenOutputFile, out Exception fe)
+        {
+            tokenOutputFile = null;
+            ae = null;
+            fe = null;
+
+            // Call requestUrl via WebWidget or manually and authenticate
+            WindowsLiveResponse rep = AuthenticationService.ParseWindowsLiveResponse(url);
+            auth = new AuthenticationService(rep);
+            try
+            {
+                auth.Authenticate();
+            }
+            catch (Exception e)
+            {
+                ae = e;
+                return false;
+            }
+
+            // Save token to JSON
+            try
+            {
+                tokenOutputFile = new FileStream(tokenFilePath, FileMode.Create);
+            }
+            catch (Exception e)
+            {
+                fe = e;
+                return false;
+            }
+            auth.DumpToFile(tokenOutputFile);
+            tokenOutputFile.Close();
+
+            _userHash = auth.XToken.UserInformation.Userhash;
+            _xToken = auth.XToken.Jwt;
+            return true;
+        }
+
+        /// <summary>
+        /// Connect to console, request Broadcast Channel and start gamestream
+        /// </summary>
+        /// <param name="ipAddress">IP address of console</param>
+        /// <param name="gamestreamConfig">Desired gamestream configuration</param>
+        /// <param name="ce">ConnectException</param>
+        /// <returns>Null if failed</returns>
+        public static GamestreamSession ConnectToConsole(string ipAddress
+            , GamestreamConfiguration gamestreamConfig, out Exception ce)
+        {
+            ce = null;
+
+            try
+            {
+                // 如果Task失败了GetAwaiter()会直接抛出异常，而Task.Wait()会抛出AggregateException
+                SmartGlassClient client = SmartGlassClient.ConnectAsync(ipAddress, _userHash, _xToken)
+                    .GetAwaiter().GetResult();
+                return client.BroadcastChannel.StartGamestreamAsync(gamestreamConfig)
+                    .GetAwaiter().GetResult();
+            }
+            catch (Exception e)
+            {
+                ce = e;
+                return null;
+            }
+        }
 
         /// <summary>
         ///  The main entry point for the application.
@@ -47,117 +127,72 @@ namespace Xstream
         [STAThread]
         static void Main()
         {
-            AllocConsole();
+            Native.AllocConsole();
 
             Console.Write("tokenFilePath: ");
             string tokenFilePath = Console.ReadLine();
 
-            AuthenticationService auth;
-
-            if (!File.Exists(tokenFilePath))
+            if (File.Exists(tokenFilePath))
             {
-                Shell.WriteLine("Warning: '{0}' file not found.\n", tokenFilePath);
-
-                string reqURL = AuthenticationService.GetWindowsLiveAuthenticationUrl();
-
-                Console.WriteLine("1) Open following URL in your WebBrowser:\n\n{0}\n\n" +
-                                        "2) Authenticate with your Microsoft Account\n" +
-                                        "3) Paste returned URL from addressbar: \n", reqURL);
-
-                // Call requestUrl via WebWidget or manually and authenticate
-
-                try
+                if (!Authenticate(tokenFilePath, out Exception ae))
                 {
-                    string url = Console.ReadLine();
-                    WindowsLiveResponse rep = AuthenticationService.ParseWindowsLiveResponse(url);
-                    auth = new AuthenticationService(rep);
-
-                    auth.Authenticate();
-                }
-                catch (Exception e)
-                {
-                    Shell.WriteLine($"Error: Authentication failed, error: {e.Message}");
+                    Shell.WriteLine($"Error: Failed to refresh XBL tokens, error: {ae.Message}");
                     Shell.PressAnyKeyToContinue();
                     return;
                 }
-
-                Console.WriteLine(auth.XToken);
-                Console.WriteLine(auth.UserInformation);
-
-                // Save token to JSON
-
-                FileStream tokenOutputFile = null;
-                try
-                {
-                    tokenOutputFile = new FileStream(tokenFilePath, FileMode.Create);
-                }
-                catch (Exception e)
-                {
-                    Shell.WriteLine("Error: Failed to open token outputfile \'{0}\', error: {1}",
-                        tokenOutputFile, e.Message);
-                    Shell.PressAnyKeyToContinue();
-                    return;
-                }
-                auth.DumpToFile(tokenOutputFile);
-                tokenOutputFile.Close();
-
-                Console.WriteLine("Storing tokens to file \'{0}\' on successful auth",
-                        tokenOutputFile.Name);
             }
             else
             {
-                // Load token from JSON
+                Shell.WriteLine("Warning: '{0}' file not found.\n", tokenFilePath);
+                Shell.WriteLine("1) Open following URL in your WebBrowser:\n\n{0}\n\n"
+                    + "2) Authenticate with your Microsoft Account\n"
+                    + "3) Paste returned URL from addressbar: \n"
+                    , AuthenticationService.GetWindowsLiveAuthenticationUrl());
 
-                FileStream fs = new FileStream(tokenFilePath, FileMode.Open);
-                auth = AuthenticationService.LoadFromFile(fs);
-                try
+                if (Authenticate(Console.ReadLine(), tokenFilePath
+                    , out AuthenticationService auth, out Exception ae
+                    , out FileStream tokenOutputFile, out Exception fe))
                 {
-                    auth.Authenticate();
+                    Console.WriteLine(auth.XToken);
+                    Console.WriteLine(auth.UserInformation);
+
+                    Shell.WriteLine("Storing tokens to file \'{0}\' on successful auth",
+                            tokenOutputFile.Name);
                 }
-                catch (Exception e)
+                else
                 {
-                    Shell.WriteLine($"Error: Failed to refresh XBL tokens, error: {e.Message}");
+                    if (ae != null)
+                    {
+                        Shell.WriteLine($"Error: Authentication failed, error: {ae.Message}");
+                    }
+
+                    if (fe != null)
+                    {
+                        Shell.WriteLine("Error: Failed to open token outputfile \'{0}\', error: {1}",
+                            tokenOutputFile, fe.Message);
+                    }
+
                     Shell.PressAnyKeyToContinue();
                     return;
                 }
-                fs.Close();
             }
 
-            UserHash = auth.XToken.UserInformation.Userhash;
-            XToken = auth.XToken.Jwt;
-
-            string[] mapping = GetMappingString(tokenFilePath).Split(',');
-
-            string addressOrHostname = mapping[0];
-            if (addressOrHostname.Length == 0)
+            Config.CurrentMapping.TokenFilePath = tokenFilePath;
+            if (Config.CurrentMapping.IP.Length == 0)
             {
-                Discover().Wait();
+                Shell.WriteLine("{0,-15} {1,-36} {2,-15} {3,-16}", "Name", "HardwareId", "Address", "LiveId");
+                IEnumerable<Device> devices = Device.DiscoverAsync().GetAwaiter().GetResult();
+                foreach (Device device in devices)
+                {
+                    Shell.WriteLine("{0,-15} {1,-36} {2,-15} {3,-16}"
+                        , device.Name
+                        , device.HardwareId
+                        , device.Address
+                        , device.LiveId);
+                }
 
                 Console.Write("Input IP Address or hostname: ");
-                addressOrHostname = Console.ReadLine();
-            }
-
-            Console.WriteLine($"Connecting to {addressOrHostname}...");
-            SmartGlassClient client;
-            try
-            {
-                Task<SmartGlassClient> connect = SmartGlassClient.ConnectAsync(
-                        addressOrHostname, UserHash, XToken);
-
-                // 如果Task失败了GetAwaiter()会直接抛出异常，而Task.Wait()会抛出AggregateException
-                client = connect.GetAwaiter().GetResult();
-            }
-            catch (Exception e)
-            {
-                if (e is SmartGlassException)
-                    Shell.WriteLine($"Error: Failed to connect: {e.Message}");
-                else if (e is TimeoutException)
-                    Shell.WriteLine($"Error: Timeout while connecting: {e.Message}");
-                else
-                    Shell.WriteLine($"Error: {e}");
-
-                Shell.PressAnyKeyToContinue();
-                return;
+                Config.CurrentMapping.IP = Console.ReadLine();
             }
 
             // Get general gamestream configuration
@@ -169,86 +204,88 @@ namespace Xstream
              * GAME_STREAMING_MEDIUM_QUALITY_SETTINGS: 6000002,720,60,3600,0,40,70,200
              * GAME_STREAMING_LOW_QUALITY_SETTINGS: 3000001,480,30,3600,0,40,70,200
              * 
+             * 12000000 = 12Mbit/s = 12Mbps
+             * 
              * SETTINGS:
              * Unknown1,Unknown2,Unknown3,Unknown4,Unknown5,Unknown6,Unknown7,Unknown8
-             * Unknown1 UrcpMaximumRate
+             * Unknown1 UrcpMaximumRate FIXME: Or AudioBufferLengthHns, both?
              * Unknown2 VideoMaximumHeight
              * Unknown3 VideoMaximumFrameRate
-             * Unknown4 ?
-             * Unknown5 AudioBufferLengthHns if 0 use Unknown1
+             * Unknown4 FIXME: Which is Unknown4?
+             * Unknown5 FIXME: Which is Unknown5?
              * Unknown6 AudioSyncMinLatency
              * Unknown7 AudioSyncDesiredLatency
              * Unknown8 AudioSyncMaxLatency
              * 
              * refer to: https://github.com/OpenXbox/xbox-smartglass-nano-python/issues/7
-             * standard: 10000000,720,60,?,0,10,40,170
+             * standard: 10000000,720,60,?,?,10,40,170
              */
-            //config.UrcpMaximumRate = (int)(3.000001 * 1000000);// 1后面6个0
+            //config.UrcpMaximumRate = 12000000;// 2后面6个0
             //config.VideoMaximumHeight = 480;
             //config.VideoMaximumFrameRate = 30;
             //config.Unknown4 = 59;
-            //config.AudioBufferLengthHns = 0;
+            //config.Unknown5 = 0;
             //config.AudioSyncMinLatency = 40;
             //config.AudioSyncDesiredLatency = 70;
             //config.AudioSyncMaxLatency = 200;
-            string quality = GetSettingString("GAME_STREAMING_AVAILABLE_QUALITY_SETTINGS");
-            if (mapping.Length == 2 && mapping[1].Length != 0)
-                quality = mapping[1];
+            if (Config.CurrentMapping.Quality != null)
+            {
+                config.UrcpMaximumRate = Config.CurrentMapping.Quality.Unknown1;
+                config.VideoMaximumHeight = Config.CurrentMapping.Quality.Unknown2;
+                config.VideoMaximumFrameRate = Config.CurrentMapping.Quality.Unknown3;
+                //config.Unknown4 = CFG_Mapping.Quality.Unknown4;
+                //config.Unknown5 = CFG_Mapping.Quality.Unknown5;
+                config.AudioSyncMinLatency = Config.CurrentMapping.Quality.Unknown6;
+                config.AudioSyncDesiredLatency = Config.CurrentMapping.Quality.Unknown7;
+                config.AudioSyncMaxLatency = Config.CurrentMapping.Quality.Unknown8;
 
-            config.UrcpMaximumRate = GetConfigurationInt(quality, "UrcpMaximumRate");
-            config.VideoMaximumHeight = GetConfigurationInt(quality, "VideoMaximumHeight");
-            config.VideoMaximumFrameRate = GetConfigurationInt(quality, "VideoMaximumFrameRate");
-            //config.Unknown4 = GetConfigurationInt(quality, "Unknown4");
-            config.AudioBufferLengthHns = GetConfigurationInt(quality, "AudioBufferLengthHns");
-            config.AudioSyncMinLatency = GetConfigurationInt(quality, "AudioSyncMinLatency");
-            config.AudioSyncDesiredLatency = GetConfigurationInt(quality, "AudioSyncDesiredLatency");
-            config.AudioSyncMaxLatency = GetConfigurationInt(quality, "AudioSyncMaxLatency");
+                if (XboxTVResolution.SupportList.ContainsKey(config.VideoMaximumHeight))
+                {
+                    config.VideoMaximumWidth = XboxTVResolution.SupportList[config.VideoMaximumHeight].W;
+                }
+                else
+                {
 
-            if (config.AudioBufferLengthHns == 0)
-                config.AudioBufferLengthHns = config.UrcpMaximumRate;
+                }
+            }
 
-            // 由于小数点向上进位，因此误差 +-1 的情况下，永远满足最小分辨率16:9
-            config.VideoMaximumWidth = (int)Math.Ceiling(config.VideoMaximumHeight / 9.0 * 16);
+            Shell.WriteLine($"Connecting to {Config.CurrentMapping.IP}...");
+            GamestreamSession session = ConnectToConsole(Config.CurrentMapping.IP, config, out Exception ce);
+            if (session == null)
+            {
+                if (ce is SmartGlassException)
+                    Shell.WriteLine($"Error: Failed to connect: {ce.Message}");
+                else if (ce is TimeoutException)
+                    Shell.WriteLine($"Error: Timeout while connecting: {ce.Message}");
+                else
+                    Shell.WriteLine($"Error: {ce}");
 
-            GamestreamSession session = client.BroadcastChannel.StartGamestreamAsync(config)
-                .GetAwaiter().GetResult();
-            Console.WriteLine($"Connecting to NANO // TCP: {session.TcpPort}, UDP: {session.UdpPort}");
+                Shell.PressAnyKeyToContinue();
+                return;
+            }
 
-            Console.WriteLine($"Running protocol init...");
-            Nano = new NanoClient(addressOrHostname, session);
+            Shell.WriteLine($"Connecting to NANO // TCP: {session.TcpPort}, UDP: {session.UdpPort}");
+            Nano = new NanoClient(Config.CurrentMapping.IP, session);
             try
             {
                 // General Handshaking & Opening channels
+                Shell.WriteLine($"Running protocol init...");
                 Nano.InitializeProtocolAsync().Wait();
 
                 // Start Controller input channel
                 Nano.OpenInputChannelAsync((uint)config.VideoMaximumWidth, (uint)config.VideoMaximumHeight).Wait();
 
-                //IConsumer consumer = /* initialize consumer */;
-                //nano.AddConsumer(consumer);
-
-                // Start consumer, if necessary
-                //consumer.Start();
-
                 // Audio & Video client handshaking
                 // Sets desired AV formats
-                Console.WriteLine("Initializing AV stream (handshaking)...");
-
                 AudioFormat = Nano.AudioFormats[0];
                 VideoFormat = Nano.VideoFormats[0];
 
+                Shell.WriteLine("Initializing AV stream (handshaking)...");
                 Nano.InitializeStreamAsync(AudioFormat, VideoFormat).Wait();
 
-                // Start ChatAudio channel
-                // TODO: Send opus audio chat samples to console
-                ChatAudioFormat = new AudioFormat(1, 24000, AudioCodec.Opus);
-                Nano.OpenChatAudioChannelAsync(ChatAudioFormat).Wait();
-
                 // Tell console to start sending AV frames
-                Console.WriteLine("Starting stream...");
-
+                Shell.WriteLine("Starting stream...");
                 Nano.StartStreamAsync().Wait();
-
                 Shell.WriteLine("Note: Stream is running");
             }
             catch (Exception e)
@@ -258,167 +295,61 @@ namespace Xstream
                 return;
             }
 
-            FreeConsole();
+            Native.FreeConsole();
 
             // Run a mainloop, to gather controller input events or similar
-
             Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-
-            _gui = new Xstream(GetSettingBool("useController"), config);
-            _gui.KeyPreview = GetSettingBool("useController.KeyPreview");
-            _gui.KeyDown += (sender, e) =>
-            {
-                if (!_gui.KeyPreview)
-                    return;
-
-                e.SuppressKeyPress = true;
-
-                switch (e.KeyCode)
-                {
-                    default:
-                        MessageBox.Show("Form.KeyPress: '" + e.KeyCode + "' consumed.");
-                        break;
-                }
-            };
-
-            Application.Run(_gui);
+            Application.Run(new Xstream(config.VideoMaximumWidth, config.VideoMaximumHeight));
 
             // finally (dirty)
             Process.GetCurrentProcess().Kill();
         }
-
-        async static Task Discover()
-        {
-            Console.WriteLine("{0,-15} {1,-36} {2,-15} {3,-16}", "Name", "HardwareId", "Address", "LiveId");
-
-            IEnumerable<Device> devices = await Device.DiscoverAsync();
-            foreach (Device device in devices)
-            {
-                Console.WriteLine("{0,-15} {1,-36} {2,-15} {3,-16}",
-                    device.Name, device.HardwareId, device.Address, device.LiveId);
-            }
-        }
-
-        public static bool GetSettingBool(string key) => GetConfigurationBool("SETTINGS", key);
-
-        public static int GetSettingInt(string key) => GetConfigurationInt("SETTINGS", key);
-
-        public static string GetSettingString(string key) => GetConfigurationString("SETTINGS", key);
-
-        public static string GetMappingString(string key) => GetConfigurationString("MAPPING", key);
-
-        static bool GetConfigurationBool(string section, string key) =>
-            bool.Parse(GetConfigurationString(section, key));
-
-        static int GetConfigurationInt(string section, string key) =>
-            int.Parse(GetConfigurationString(section, key));
-
-        static string GetConfigurationString(string section, string key) =>
-            GetPrivateProfileString(section, key, "", "./cfg.ini");
-
-        static string GetPrivateProfileString(string section, string key, string def, string filePath)
-        {
-            StringBuilder sb = new StringBuilder(0xff);
-            GetPrivateProfileString(section, key, def, sb, (uint)sb.Capacity, filePath);
-            return sb.ToString();
-        }
-
-        public static void Delay(int ms) => Delay((uint)ms);
-
-        public static void Delay(uint ms)
-        {
-            uint max_delay = 0xffffffffU / 1000;
-            if (ms > max_delay)
-                ms = max_delay;
-            Sleep(ms);// Thread.Sleep(millisecondsTimeout < 0) 会报错
-        }
-
-        public static bool PostMessage(SDL_EventType msg) => _gui.PostMessage(msg, IntPtr.Zero, IntPtr.Zero);
-
-        public static string GetLastError()
-        {
-            IntPtr lpMsgBuf = IntPtr.Zero;
-            uint len = FormatMessage(
-                FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS
-                , IntPtr.Zero
-                , (uint)Marshal.GetLastWin32Error()
-                , 0
-                , lpMsgBuf
-                , 0
-                , IntPtr.Zero);
-            if (len == 0)
-            {
-                throw new SystemException($"win32 FormatMessage err: {Marshal.GetLastWin32Error()}");
-            }
-
-            string sRet = Marshal.PtrToStringAnsi(lpMsgBuf);
-            lpMsgBuf = LocalFree(lpMsgBuf);
-            if (lpMsgBuf != null)
-            {
-                throw new SystemException($"win32 LocalFree err: {GetLastError()}");
-            }
-            return sRet;
-        }
-
-        [DllImport("user32.dll")]
-        public extern static bool DestroyIcon(IntPtr handle);
-        [DllImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool PeekMessage(
-            out NativeMessage lpMsg,
-            size_t hWnd,
-            uint wMsgFilterMin,
-            uint wMsgFilterMax,
-            uint wRemoveMsg);
-        [DllImport("user32.dll", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool PostThreadMessage(uint threadId, uint msg, IntPtr wParam, IntPtr lParam);
-        [DllImport("kernel32.dll")]
-        public static extern uint GetCurrentThreadId();
-        [DllImport("Kernel32.dll", EntryPoint = "RtlZeroMemory")]
-        public static unsafe extern void ZeroMemory(void* Destination, size_t Length);
-        [DllImport("msvcrt.dll", EntryPoint = "memset", CallingConvention = CallingConvention.Cdecl)]
-        public static unsafe extern void* SetMemory(void* dest, int c, size_t byteCount);
-        [DllImport("msvcrt.dll", EntryPoint = "memcpy", CallingConvention = CallingConvention.Cdecl)]
-        public static unsafe extern void* CopyMemory(void* dest, void* src, size_t count);
-        [DllImport("kernel32")]
-        public static extern bool AllocConsole();
-        [DllImport("kernel32")]
-        public static extern bool FreeConsole();
-        [DllImport("kernel32")]
-        static extern uint GetPrivateProfileString(
-            string lpAppName,
-            string lpKeyName,
-            string lpDefault,
-            StringBuilder lpReturnedString,
-            uint nSize,
-            string lpFileName);
-        [DllImport("kernel32")]
-        static extern void Sleep(uint dwMilliseconds);
-        [DllImport("kernel32.dll")]
-        static extern uint FormatMessage(
-            uint dwFlags,
-            IntPtr lpSource,
-            uint dwMessageId,
-            uint dwLanguageId,
-            IntPtr lpBuffer,
-            uint nSize,
-            IntPtr Arguments);
-        [DllImport("kernel32.dll", SetLastError = true)]
-        static extern IntPtr LocalFree(IntPtr hMem);
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    public struct NativeMessage
+    /// <summary>
+    /// 关于电视分辨率和 Xbox One
+    /// https://support.xbox.com/zh-CN/help/hardware-network/display-sound/tv-resolutions
+    /// </summary>
+    public class XboxTVResolution
     {
-        public IntPtr handle;
-        public uint msg;
-        public IntPtr wParam;
-        public IntPtr lParam;
-        public uint time;
-        public System.Drawing.Point p;
-        //public uint lPrivate;
+        public readonly int H4V3 = Per(4, 3);
+        public readonly int H16V9 = Per(16, 9);
+
+        public static XboxTVResolution EDTV_480P = new XboxTVResolution(640, 480, "480p");
+        public static XboxTVResolution HDTV_720p = new XboxTVResolution(1280, 720, "720p");
+        public static XboxTVResolution HDTV_1080i = new XboxTVResolution(1920, 1080, "1080i");
+        public static XboxTVResolution HDTV_1080p = new XboxTVResolution(1920, 1080, "1080p");
+        public static XboxTVResolution HDTV_1440p = new XboxTVResolution(2560, 1440, "1440p");
+        public static XboxTVResolution UHDTV_4K = new XboxTVResolution(3840, 2160, "2160p");
+
+        public static Dictionary<int, XboxTVResolution> SupportList =
+            new Dictionary<int, XboxTVResolution>()
+        {
+            {EDTV_480P.H, EDTV_480P},
+            {HDTV_720p.H, HDTV_720p},
+            {HDTV_1080p.H, HDTV_1080p},
+            {HDTV_1440p.H, HDTV_1440p},
+            {UHDTV_4K.H, UHDTV_4K}
+        };
+
+        static int Per(int h, int v) => h << 16 | v;
+
+        public int W { get; private set; }
+        public int H { get; private set; }
+        public int P { get; private set; }
+        public string Scan { get; private set; }
+        public string AspectRatio { get { return $"{P >> 16}:{P & 0xFF}"; } }
+
+        XboxTVResolution(int h, int v, string s)
+        {
+            W = h;// horizon
+            H = v;// vertical
+            Scan = s;
+
+            if (0 != v) while (0 != (h %= v) && 0 != (v %= h)) ;
+            P = Per(v += h, v);
+        }
     }
 }

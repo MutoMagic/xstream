@@ -162,7 +162,7 @@ namespace Xstream
                 }
 
                 datalen = Math.Min(len, packet_size - packet.datalen);
-                Program.CopyMemory(packet.data + packet.datalen, data, datalen);
+                Native.CopyMemory(packet.data + packet.datalen, data, datalen);
                 data += datalen;
                 len -= datalen;
                 packet.datalen += datalen;
@@ -235,7 +235,7 @@ namespace Xstream
                 size_t avail = packet.datalen - packet.startpos;
                 size_t cpy = Math.Min(len, avail);
 
-                Program.CopyMemory(ptr, packet.data + packet.startpos, cpy);
+                Native.CopyMemory(ptr, packet.data + packet.startpos, cpy);
                 packet.startpos += cpy;
                 ptr += cpy;
                 queue.queued_bytes -= cpy;

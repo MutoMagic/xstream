@@ -2,7 +2,7 @@
 
 namespace Xstream
 {
-    static class Shell
+    public static class Shell
     {
         public static void PressAnyKeyToContinue()
         {
@@ -15,7 +15,7 @@ namespace Xstream
             WriteLine(string.Format(format, args));
         }
 
-        public static void WriteLine(String output)
+        public static void WriteLine(string output)
         {
             ConsoleColor dc = Console.ForegroundColor;
 
@@ -25,7 +25,7 @@ namespace Xstream
             Console.ForegroundColor = dc;
         }
 
-        private static ConsoleColor GetConsoleColor(string output)
+        static ConsoleColor GetConsoleColor(string output)
         {
             if (output.StartsWith("Note")) return ConsoleColor.Green;
             if (output.StartsWith("Warning")) return ConsoleColor.Yellow;

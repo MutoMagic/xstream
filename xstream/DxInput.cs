@@ -7,22 +7,11 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Windows.Forms;
 
 namespace Xstream
 {
     public unsafe class DxInput
     {
-        public bool Initialized { get; private set; }
-        public string ControllerMappingFilepath { get; private set; }
-
-        public uint Timestamp { get; private set; }
-        public InputButtons Buttons { get; private set; }
-        public InputAnalogue Analog { get; private set; }
-        public InputExtension Extension { get; private set; }
-
-        IntPtr _hwnd;// 顶级窗口句柄
-
         public static Dictionary<string, NanoGamepadButton> ButtonMap =
                 new Dictionary<string, NanoGamepadButton>()
                 {
@@ -54,6 +43,17 @@ namespace Xstream
                 {"righttrigger", NanoGamepadAxis.TriggerRight}
             };
 
+        public bool Initialized { get; private set; }
+        public string ControllerMappingFilepath { get; private set; }
+
+        public uint Timestamp { get; private set; }
+        public InputButtons Buttons { get; private set; }
+        public InputAnalogue Analog { get; private set; }
+        public InputExtension Extension { get; private set; }
+
+        Xstream _window;
+        IntPtr _hwnd;// 顶级窗口句柄
+
         DirectInput _directInput;
         SortedList _joystickGuidList = new SortedList();// Dictionary<Guid, string[]>
         Joystick _controller = null;
@@ -82,9 +82,11 @@ namespace Xstream
             _directInput = new DirectInput();
         }
 
-        public bool Initialize(Form f)
+        public bool Initialize(Xstream f)
         {
-            _hwnd = f.Handle;
+            _window = f;
+            _hwnd = f.GetHandle();
+
             return Initialize();
         }
 

@@ -213,7 +213,7 @@ namespace Xstream
             _hidden.mixlen = _bufferSize;
             _hidden.mixbuf = (byte*)Marshal.AllocHGlobal(2 * _hidden.mixlen);
             _hidden.nextbuf = _hidden.mixbuf;
-            Program.SetMemory(_hidden.mixbuf, _waveFormat.Silence, (size_t)(2 * _hidden.mixlen));
+            Native.SetMemory(_hidden.mixbuf, _waveFormat.Silence, (size_t)(2 * _hidden.mixlen));
 
             // Pre-allocate buffers
             _hidden.audioBuffersRing = new AudioBuffer[2];
@@ -263,7 +263,7 @@ namespace Xstream
                 {
                     if (_paused)
                     {
-                        Program.SetMemory(data, _waveFormat.Silence, data_len);
+                        Native.SetMemory(data, _waveFormat.Silence, data_len);
                     }
                     else
                     {
@@ -274,7 +274,7 @@ namespace Xstream
                 if (data == _workbuf)
                 {
                     // nothing to do; pause like we queued a buffer to play.
-                    Program.Delay(delay);
+                    Native.Delay(delay);
                 }
                 else// writing directly to the device.
                 {
@@ -287,7 +287,7 @@ namespace Xstream
             _sourceVoice.Discontinuity();
 
             // Wait for the audio to drain.
-            Program.Delay(delay * 2);
+            Native.Delay(delay * 2);
         }
 
         private void BufferQueueDrainCallback(byte* stream, size_t len)
@@ -304,7 +304,7 @@ namespace Xstream
             if (len > 0)// fill any remaining space in the stream with silence.
             {
                 Debug.Assert(DataQueuePacket.CountDataQueue(_queue) == 0);
-                Program.SetMemory(stream, _waveFormat.Silence, len);
+                Native.SetMemory(stream, _waveFormat.Silence, len);
             }
         }
 
@@ -366,7 +366,7 @@ namespace Xstream
             }
 
             // Post the event, if desired
-            Program.PostMessage(SDL_EventType.AUDIODEVICEREMOVED);
+            //Xstream.PostMessage(SDL_EventType.AUDIODEVICEREMOVED);
         }
 
         private void WaitDevice()
