@@ -210,35 +210,33 @@ namespace Xstream
              * 
              * SETTINGS:
              * Unknown1,Unknown2,Unknown3,Unknown4,Unknown5,Unknown6,Unknown7,Unknown8
-             * Unknown1 UrcpMaximumRate FIXME: Or AudioBufferLengthHns, both?
+             * Unknown1 UrcpMaximumRate         FIXME: Or AudioBufferLengthHns, both??
              * Unknown2 VideoMaximumHeight
              * Unknown3 VideoMaximumFrameRate
-             * Unknown4 FIXME: Which is Unknown4?
-             * Unknown5 FIXME: Which is Unknown5?
+             * Unknown4                         FIXME: Which is Unknown4?
+             * Unknown5                         FIXME: Which is Unknown5?
              * Unknown6 AudioSyncMinLatency
              * Unknown7 AudioSyncDesiredLatency
              * Unknown8 AudioSyncMaxLatency
              * 
              * refer to: https://github.com/OpenXbox/xbox-smartglass-nano-python/issues/7
-             * standard: 10000000,720,60,?,?,10,40,170
+             * standard: GAME_STREAMING_MEDIUM_QUALITY_SETTINGS
              */
             //config.UrcpMaximumRate = 12000000;// 2ºóÃæ6¸ö0
             //config.VideoMaximumHeight = 480;
             //config.VideoMaximumFrameRate = 30;
-            //config.Unknown4 = 59;
+            //config.Unknown4 = 3600;
             //config.Unknown5 = 0;
             //config.AudioSyncMinLatency = 40;
             //config.AudioSyncDesiredLatency = 70;
             //config.AudioSyncMaxLatency = 200;
-            config.AudioBufferLengthHns = 0;
-
             if (Config.CurrentMapping.Quality != null)
             {
                 config.UrcpMaximumRate = Config.CurrentMapping.Quality.Unknown1;
                 config.VideoMaximumHeight = Config.CurrentMapping.Quality.Unknown2;
                 config.VideoMaximumFrameRate = Config.CurrentMapping.Quality.Unknown3;
-                //config.Unknown4 = CFG_Mapping.Quality.Unknown4;
-                //config.Unknown5 = CFG_Mapping.Quality.Unknown5;
+                //config.Unknown4 = Config.CurrentMapping.Quality.Unknown4;
+                //config.Unknown5 = Config.CurrentMapping.Quality.Unknown5;
                 config.AudioSyncMinLatency = Config.CurrentMapping.Quality.Unknown6;
                 config.AudioSyncDesiredLatency = Config.CurrentMapping.Quality.Unknown7;
                 config.AudioSyncMaxLatency = Config.CurrentMapping.Quality.Unknown8;

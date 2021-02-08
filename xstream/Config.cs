@@ -150,14 +150,14 @@
         {
             Name = null;
 
-            Unknown1 = 10000000;
+            Unknown1 = 6000002;
             Unknown2 = 720;
             Unknown3 = 60;
-            //Unknown4 = 0;
-            //Unknown5 = 0;
-            Unknown6 = 10;
-            Unknown7 = 40;
-            Unknown8 = 170;
+            Unknown4 = 3600;
+            Unknown5 = 0;
+            Unknown6 = 40;
+            Unknown7 = 70;
+            Unknown8 = 200;
         }
 
         public CFG_Quality(string quality)
