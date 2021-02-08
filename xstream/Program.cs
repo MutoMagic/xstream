@@ -15,8 +15,10 @@ namespace Xstream
     static class Program
     {
         public static NanoClient Nano { get; private set; }
+
         public static AudioFormat AudioFormat { get; private set; }
         public static VideoFormat VideoFormat { get; private set; }
+        public static AudioFormat ChatAudioFormat { get; private set; }
 
         static string _userHash;
         static string _xToken;
@@ -228,6 +230,8 @@ namespace Xstream
             //config.AudioSyncMinLatency = 40;
             //config.AudioSyncDesiredLatency = 70;
             //config.AudioSyncMaxLatency = 200;
+            config.AudioBufferLengthHns = 0;
+
             if (Config.CurrentMapping.Quality != null)
             {
                 config.UrcpMaximumRate = Config.CurrentMapping.Quality.Unknown1;
@@ -282,6 +286,11 @@ namespace Xstream
 
                 Shell.WriteLine("Initializing AV stream (handshaking)...");
                 Nano.InitializeStreamAsync(AudioFormat, VideoFormat).Wait();
+
+                // Start ChatAudio channel
+                // TODO: Send opus audio chat samples to console
+                ChatAudioFormat = new AudioFormat(1, 24000, AudioCodec.Opus);
+                Nano.OpenChatAudioChannelAsync(ChatAudioFormat).Wait();
 
                 // Tell console to start sending AV frames
                 Shell.WriteLine("Starting stream...");
