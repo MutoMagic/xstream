@@ -129,8 +129,8 @@
             return result;// When TryParse is false, the result is 0
         }
 
-        public static string GetConfigurationString(string section, string key) =>
-            Native.GetPrivateProfileString(section, key, "", "./cfg.ini");
+        public static string GetConfigurationString(string section, string key)
+            => Native.GetPrivateProfileString(section, key, "", "./cfg.ini");
     }
 
     public class CFG_Quality

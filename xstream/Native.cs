@@ -20,29 +20,6 @@ namespace Xstream
         const uint FORMAT_MESSAGE_FROM_SYSTEM = 0x00001000;
         const uint FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200;
 
-        public static int IndexOf(this StringBuilder sb, char value)
-        {
-            for (int i = 0; i < sb.Length; i++)
-            {
-                if (sb[i] == value)
-                {
-                    return i;
-                }
-            }
-
-            return -1;
-        }
-
-        public static void Delete(this StringBuilder sb, int startIndex)
-        {
-            if (startIndex != -1)
-            {
-                sb.Length = startIndex;
-            }
-        }
-
-        public static void Delete(this StringBuilder sb, char value) => sb.Delete(sb.IndexOf(value));
-
         public static string GetPrivateProfileString(string section, string key, string def, string filePath)
         {
             StringBuilder sb = new StringBuilder(0xff);
@@ -190,5 +167,32 @@ namespace Xstream
             public System.Drawing.Point p;
             //public uint lPrivate;
         }
+    }
+
+    static class StringBuilder_Extensions
+    {
+        public static int IndexOf(this StringBuilder sb, char value)
+        {
+            for (int i = 0; i < sb.Length; i++)
+            {
+                if (sb[i] == value)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        public static void Delete(this StringBuilder sb, int startIndex)
+        {
+            if (startIndex != -1)
+            {
+                sb.Length = startIndex;
+            }
+        }
+
+        public static void Delete(this StringBuilder sb, char startIndex)
+            => sb.Delete(sb.IndexOf(startIndex));
     }
 }
