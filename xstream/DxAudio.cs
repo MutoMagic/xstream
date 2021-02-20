@@ -16,7 +16,7 @@ using size_t = System.UInt64;
 
 namespace Xstream
 {
-    public unsafe class DxAudio
+    unsafe class DxAudio
     {
         const int XAUDIO2_DEFAULT_CHANNELS = 0;
         const int XAUDIO2_COMMIT_NOW = 0;
@@ -70,12 +70,14 @@ namespace Xstream
 
         public bool Initialized => _dev != null;
 
-        string _dev;
+        Xstream _window;
+
         int _sampleRate;
         int _channels;
         int _samples;
 
         XAudio2 _xaudio2;
+        string _dev;
         MasteringVoice _masteringVoice;
         WaveFormatEx _waveFormat;
         SourceVoice _sourceVoice;
@@ -107,8 +109,9 @@ namespace Xstream
          * @see: https://my.oschina.net/u/4365632/blog/3319770
          *       https://wiki.libsdl.org/SDL_AudioSpec#Remarks
          */
-        public int Initialize(int samples)
+        public int Initialize(Xstream f, int samples)
         {
+            _window = f;
             _samples = samples;
 
             _shutdown = false;// just in case.
@@ -146,7 +149,7 @@ namespace Xstream
             return 0;
         }
 
-        private void OpenDevice()
+        void OpenDevice()
         {
             try
             {
@@ -228,7 +231,7 @@ namespace Xstream
         }
 
         // The general mixing thread function
-        private void RunAudio()
+        void RunAudio()
         {
             int delay = _samples * 1000 / _sampleRate;
             size_t data_len = (size_t)_bufferSize;
@@ -290,7 +293,7 @@ namespace Xstream
             Native.Delay(delay * 2);
         }
 
-        private void BufferQueueDrainCallback(byte* stream, size_t len)
+        void BufferQueueDrainCallback(byte* stream, size_t len)
         {
             // this function always holds the mixer lock before being called.
             size_t dequeued;
@@ -308,7 +311,7 @@ namespace Xstream
             }
         }
 
-        private void PlayDevice()
+        void PlayDevice()
         {
             AudioBuffer buffer;
             byte* mixbuf = _hidden.mixbuf;
@@ -353,7 +356,7 @@ namespace Xstream
         }
 
         // The audio backends call this when a currently-opened device is lost.
-        private void OpenedAudioDeviceDisconnected()
+        void OpenedAudioDeviceDisconnected()
         {
             if (!_enabled)
                 return;
@@ -366,10 +369,10 @@ namespace Xstream
             }
 
             // Post the event, if desired
-            //Xstream.PostMessage(SDL_EventType.AUDIODEVICEREMOVED);
+            _window?.PostMessage(SDL_EventType.AUDIODEVICEREMOVED);
         }
 
-        private void WaitDevice()
+        void WaitDevice()
         {
             if (_enabled)
             {
@@ -393,7 +396,7 @@ namespace Xstream
             }
         }
 
-        private int QueueAudio(void* data, size_t len)
+        int QueueAudio(void* data, size_t len)
         {
             if (!Initialized)
             {
@@ -449,7 +452,7 @@ namespace Xstream
             CloseDevice();
         }
 
-        private void CloseDevice()
+        void CloseDevice()
         {
             _sourceVoice?.Stop(PlayFlags.None, XAUDIO2_COMMIT_NOW);
             _sourceVoice?.FlushSourceBuffers();
@@ -482,8 +485,8 @@ namespace Xstream
             _dev = null;
         }
 
-        private void OnBufferEnd(IntPtr context) => _hidden.semaphore.Release();
-        private void OnVoiceError(SourceVoice.VoiceErrorArgs args) => OpenedAudioDeviceDisconnected();
+        void OnBufferEnd(IntPtr context) => _hidden.semaphore.Release();
+        void OnVoiceError(SourceVoice.VoiceErrorArgs args) => OpenedAudioDeviceDisconnected();
     }
 
     class WaveFormatEx : WaveFormat

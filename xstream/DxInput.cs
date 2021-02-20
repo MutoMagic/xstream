@@ -51,7 +51,6 @@ namespace Xstream
         public InputAnalogue Analog { get; private set; }
         public InputExtension Extension { get; private set; }
 
-        Xstream _window;
         IntPtr _hwnd;// 顶级窗口句柄
 
         DirectInput _directInput;
@@ -84,9 +83,7 @@ namespace Xstream
 
         public bool Initialize(Xstream f)
         {
-            _window = f;
             _hwnd = f.GetHandle();
-
             return Initialize();
         }
 

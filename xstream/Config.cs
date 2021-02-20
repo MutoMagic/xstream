@@ -49,10 +49,12 @@
             {
                 case "borderless":
                     Borderless = true;
-                    goto case "true";
-                case "true":
+                    goto case "exclusive";
+                case "exclusive":
                     Fullscreen = true;
                     break;
+                case "windowed":
+                    goto default;
                 default:
                     Fullscreen = false;
                     Borderless = false;

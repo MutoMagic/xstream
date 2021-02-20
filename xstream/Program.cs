@@ -107,7 +107,7 @@ namespace Xstream
         /// <param name="gamestreamConfig">Desired gamestream configuration</param>
         /// <param name="ce">ConnectException</param>
         /// <returns>Null if failed</returns>
-        public static GamestreamSession ConnectToConsole(
+        static GamestreamSession ConnectToConsole(
             string ipAddress,
             GamestreamConfiguration gamestreamConfig,
             out Exception ce)
@@ -137,8 +137,12 @@ namespace Xstream
         {
             Native.AllocConsole();
 
+#if DEBUG
+            string tokenFilePath = "pcl";
+#else
             Console.Write("tokenFilePath: ");
             string tokenFilePath = Console.ReadLine();
+#endif
 
             if (File.Exists(tokenFilePath))
             {
@@ -257,7 +261,7 @@ namespace Xstream
                 bool convert = true;
 
                 // ComputerTVResolution
-                Native.DEVMODE vDevMode = new Native.DEVMODE();
+                DEVMODE vDevMode = new DEVMODE();
                 for (int i = 0; Native.EnumDisplaySettings(null, i, ref vDevMode); i++)
                 {
                     bool n = false;
@@ -342,13 +346,15 @@ namespace Xstream
                 return;
             }
 
-            //Native.FreeConsole();
+#if !DEBUG
+            Native.FreeConsole();
+#endif
 
             // Run a mainloop, to gather controller input events or similar
             Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Xstream(config.VideoMaximumWidth, config.VideoMaximumHeight));
+            Application.Run(new Xstream());
 
             // finally (dirty)
             Process.GetCurrentProcess().Kill();
@@ -422,8 +428,8 @@ namespace Xstream
         public int W { get; private set; }
         public int H { get; private set; }
         public int P { get; private set; }
-        public string AspectRatio { get { return $"{Horizon(P)}:{Vertical(P)}"; } }
-        public bool Priority { get { return _scan == null || _scan.EndsWith('p'); } }
+        public string AspectRatio => $"{Horizon(P)}:{Vertical(P)}";
+        public bool Priority => _scan == null || _scan.EndsWith('p');
 
         string _scan;
 

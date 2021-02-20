@@ -53,7 +53,9 @@ namespace Xstream
         {
             try
             {
-                SDL_DataQueuePacket p;// 栈是从高地址到底地址存储数据
+                // 栈是从高地址到底地址存储数据，但结构体和数组应该当作一个整体，其内部地址是由低到高增长。
+                // 然而实际并非完全如此，上面这句话并不严谨，详见：https://www.zhihu.com/question/36103513
+                SDL_DataQueuePacket p;// 这里是由低到高
                 packetlen += Marshal.SizeOf<SDL_DataQueuePacket>() - (int)(
                     (size_t)(&p.data) - (size_t)(&p.datalen));
 
@@ -172,7 +174,7 @@ namespace Xstream
             return 0;
         }
 
-        private static DataQueuePacket AllocateDataQueuePacket(DataQueue queue)
+        static DataQueuePacket AllocateDataQueuePacket(DataQueue queue)
         {
             DataQueuePacket packet;
 
@@ -209,7 +211,7 @@ namespace Xstream
             return packet;
         }
 
-        private static void FreeDataQueueList(DataQueuePacket packet)
+        static void FreeDataQueueList(DataQueuePacket packet)
         {
             while (packet != null)
             {
