@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using XboxWebApi.Authentication;
 using XboxWebApi.Authentication.Model;
@@ -262,6 +263,8 @@ namespace Xstream
 
                 // ComputerTVResolution
                 DEVMODE vDevMode = new DEVMODE();
+                vDevMode.dmSize = (short)Marshal.SizeOf(vDevMode);
+                vDevMode.dmDriverExtra = 0;
                 for (int i = 0; Native.EnumDisplaySettings(null, i, ref vDevMode); i++)
                 {
                     bool n = false;

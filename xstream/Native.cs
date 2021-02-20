@@ -1,7 +1,7 @@
 ﻿using System;
+using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Windows.Forms;
 
 #if WIN32
 using size_t = System.UInt32;
@@ -103,6 +103,9 @@ namespace Xstream
         [DllImport("msvcrt.dll", EntryPoint = "memcpy", CallingConvention = CallingConvention.Cdecl)]
         public static unsafe extern void* CopyMemory(void* dest, void* src, size_t count);
 
+        [DllImport("kernel32.dll", ExactSpelling = true)]
+        public static extern IntPtr GlobalSize(IntPtr handle);
+
         #endregion
 
         #region 线程
@@ -119,6 +122,9 @@ namespace Xstream
 
         public const int ENUM_CURRENT_SETTINGS = -1;
         public const int ENUM_REGISTRY_SETTINGS = -2;
+
+        public const int CCHDEVICENAME = 32;
+        public const int CCHFORMNAME = 32;
 
         public const int DM_ORIENTATION = 0x00000001;
         public const int DM_PAPERSIZE = 0x00000002;
@@ -199,7 +205,7 @@ namespace Xstream
             ref DISPLAY_DEVICE lpDisplayDevice,
             uint dwFlags);
 
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
         public static extern bool EnumDisplaySettings(string deviceName, int modeNum, ref DEVMODE devMode);
 
         [DllImport("gdi32.dll")]
@@ -524,33 +530,69 @@ namespace Xstream
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    public struct DUMMYSTRUCTNAME
+    {
+        public short dmOrientation;
+        public short dmPaperSize;
+        public short dmPaperLength;
+        public short dmPaperWidth;
+        public short dmScale;
+        public short dmCopies;
+        public short dmDefaultSource;
+        public short dmPrintQuality;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DUMMYSTRUCTNAME2
+    {
+        public Point dmPosition;
+        public int dmDisplayOrientation;
+        public int dmDisplayFixedOutput;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    public struct DUMMYUNIONNAME
+    {
+        [FieldOffset(0)]
+        public DUMMYSTRUCTNAME DUMMYSTRUCTNAME;
+        [FieldOffset(0)]
+        public Point dmPosition;
+        [FieldOffset(0)]
+        public DUMMYSTRUCTNAME2 DUMMYSTRUCTNAME2;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    public struct DUMMYUNIONNAME2
+    {
+        [FieldOffset(0)]
+        public int dmDisplayFlags;
+        [FieldOffset(0)]
+        public int dmNup;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
     public struct DEVMODE
     {
-        private const int CCHDEVICENAME = 0x20;
-        private const int CCHFORMNAME = 0x20;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 0x20)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = Native.CCHDEVICENAME)]
         public string dmDeviceName;
         public short dmSpecVersion;
         public short dmDriverVersion;
         public short dmSize;
         public short dmDriverExtra;
         public int dmFields;
-        public int dmPositionX;
-        public int dmPositionY;
-        public ScreenOrientation dmDisplayOrientation;
-        public int dmDisplayFixedOutput;
+        public DUMMYUNIONNAME DUMMYUNIONNAME;
         public short dmColor;
         public short dmDuplex;
         public short dmYResolution;
         public short dmTTOption;
         public short dmCollate;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 0x20)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = Native.CCHFORMNAME)]
         public string dmFormName;
         public short dmLogPixels;
         public int dmBitsPerPel;
         public int dmPelsWidth;
         public int dmPelsHeight;
-        public int dmDisplayFlags;
+        public DUMMYUNIONNAME2 DUMMYUNIONNAME2;
         public int dmDisplayFrequency;
         public int dmICMMethod;
         public int dmICMIntent;
@@ -616,7 +658,7 @@ namespace Xstream
         public IntPtr wParam;
         public IntPtr lParam;
         public uint time;
-        public System.Drawing.Point p;
+        public Point p;
         //public uint lPrivate;
     }
 
@@ -636,7 +678,6 @@ namespace Xstream
     /// </summary>
     public enum SpecialWindowHandles
     {
-        // ReSharper disable InconsistentNaming
         /// <summary>
         ///     Places the window at the top of the Z order.
         /// </summary>
@@ -653,14 +694,11 @@ namespace Xstream
         ///     Places the window above all non-topmost windows (that is, behind all topmost windows). This flag has no effect if the window is already a non-topmost window.
         /// </summary>
         HWND_NOTOPMOST = -2
-        // ReSharper restore InconsistentNaming
     }
 
     [Flags]
     public enum SetWindowPosFlags : uint
     {
-        // ReSharper disable InconsistentNaming
-
         /// <summary>
         ///     If the calling thread and the thread that owns the window are attached to different input queues, the system posts the request to the thread that owns the window. This prevents the calling thread from blocking its execution while other threads process the request.
         /// </summary>
@@ -735,8 +773,6 @@ namespace Xstream
         ///     Displays the window.
         /// </summary>
         SWP_SHOWWINDOW = 0x0040,
-
-        // ReSharper restore InconsistentNaming
     }
 
     static class StringBuilder_Extensions
