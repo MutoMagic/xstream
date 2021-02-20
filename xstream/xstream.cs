@@ -1,5 +1,6 @@
 ﻿using SharpDX.Direct3D9;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
@@ -12,12 +13,9 @@ namespace Xstream
 {
     public partial class Xstream : Form
     {
-        const int WM_CLOSE = 0x0010;
-
         const uint USER = 0x0400;
 
-        static uint WM_(SDL_EventType msg) => (uint)(USER + msg);
-        static SDL_EventType SDL_(uint msg) => (SDL_EventType)(msg - USER);
+        const int WM_CLOSE = 0x0010;
 
         #region Window Styles
 
@@ -54,6 +52,7 @@ namespace Xstream
 
         delegate IntPtr GetHandleCallback();
         int _numDisplays;
+        VideoDisplay[] _displays;
 
         public Xstream()
         {
@@ -66,7 +65,6 @@ namespace Xstream
 
             if (Config.Fullscreen)
             {
-
                 if (Config.Borderless)
                 {
                     //FormBorderStyle = FormBorderStyle.None;
@@ -265,83 +263,10 @@ namespace Xstream
             return false;
         }
 
-        void InitModes()
-        {
-            int pass, count;
-            uint i, j;
-            DISPLAY_DEVICE device = new DISPLAY_DEVICE();
+        static uint WM_(SDL_EventType msg) => USER + (uint)msg;
+        static SDL_EventType SDL_(uint msg) => (SDL_EventType)(msg - USER);
 
-            device.cb = Marshal.SizeOf(device);
-
-            // Get the primary display in the first pass
-            for (pass = 0; pass < 2; ++pass)
-            {
-                for (i = 0; ; ++i)
-                {
-                    string deviceName;
-
-                    if (!Native.EnumDisplayDevices(null, i, ref device, 0)) break;
-                    if ((device.StateFlags & DisplayDeviceStateFlags.AttachedToDesktop) == 0) continue;
-                    if (pass == 0)
-                    {
-                        if ((device.StateFlags & DisplayDeviceStateFlags.PrimaryDevice) == 0) continue;
-                    }
-                    else
-                    {
-                        if ((device.StateFlags & DisplayDeviceStateFlags.PrimaryDevice) != 0) continue;
-                    }
-                    deviceName = device.DeviceName;
-                    Debug.WriteLine("Device: {0}", deviceName);
-                    count = 0;
-                    for (j = 0; ; ++j)
-                    {
-                        if (!Native.EnumDisplayDevices(deviceName, j, ref device, 0)) break;
-                        if ((device.StateFlags & DisplayDeviceStateFlags.AttachedToDesktop) == 0) continue;
-                        if (pass == 0)
-                        {
-                            if ((device.StateFlags & DisplayDeviceStateFlags.PrimaryDevice) == 0) continue;
-                        }
-                        else
-                        {
-                            if ((device.StateFlags & DisplayDeviceStateFlags.PrimaryDevice) != 0) continue;
-                        }
-                        count += AddDisplay(device.DeviceName) ? 1 : 0;
-                    }
-                    if (count == 0)
-                    {
-                        AddDisplay(deviceName);
-                    }
-                }
-            }
-            if (_numDisplays == 0)
-            {
-                throw new Exception("No displays available");
-            }
-        }
-
-        bool AddDisplay(string deviceName)
-        {
-            VideoDisplay display = new VideoDisplay();
-            DisplayMode mod = new DisplayMode();
-            DISPLAY_DEVICE device = new DISPLAY_DEVICE();
-
-            if (!GetDisplayMode(deviceName, Native.ENUM_CURRENT_SETTINGS, ref mod))
-            {
-                return false;
-            }
-
-            device.cb = Marshal.SizeOf(device);
-            if (Native.EnumDisplayDevices(deviceName, 0, ref device, 0))
-            {
-                display.name = device.DeviceString;
-            }
-            display.desktop_mode = mod;
-            display.current_mode = mod;
-            display.driverdata = deviceName;
-            return true;
-        }
-
-        bool GetDisplayMode(string deviceName, int index, ref DisplayMode mode)
+        static bool GetDisplayMode(string deviceName, int index, ref DisplayMode mode)
         {
             DEVMODE data;
             DEVMODE devmode = new DEVMODE();
@@ -371,9 +296,10 @@ namespace Xstream
             if (index == Native.ENUM_CURRENT_SETTINGS
                 && (hdc = Native.CreateDC(deviceName, null, null, IntPtr.Zero)) != null)
             {
-                BITMAPINFO bmi = new BITMAPINFO();
+                BITMAPINFO bmi;
                 IntPtr hbm;
 
+                bmi = new BITMAPINFO();
                 bmi.bmiHeader.Init();
 
                 hbm = Native.CreateCompatibleBitmap(hdc, 1, 1);
@@ -438,6 +364,104 @@ namespace Xstream
             }
             return true;
         }
+
+        int AddVideoDisplay(VideoDisplay display)
+        {
+            VideoDisplay[] displays;
+            int index;
+
+            displays = new VideoDisplay[_numDisplays + 1];
+            index = _numDisplays++;
+            displays[index] = display;
+
+            _displays?.CopyTo(displays, 0);
+            _displays = displays;
+
+            if (string.IsNullOrEmpty(display.name))
+            {
+                displays[index].name = index.ToString();
+            }
+
+            return index;
+        }
+
+        bool AddDisplay(string deviceName)
+        {
+            VideoDisplay display = new VideoDisplay();
+            DisplayMode mod = new DisplayMode();
+            DISPLAY_DEVICE device = new DISPLAY_DEVICE();
+
+            if (!GetDisplayMode(deviceName, Native.ENUM_CURRENT_SETTINGS, ref mod))
+            {
+                return false;
+            }
+
+            device.cb = Marshal.SizeOf(device);
+            if (Native.EnumDisplayDevices(deviceName, 0, ref device, 0))
+            {
+                display.name = device.DeviceString;
+            }
+            display.desktop_mode = mod;
+            display.current_mode = mod;
+            display.deviceName = deviceName;
+            AddVideoDisplay(display);
+            return true;
+        }
+
+        void InitModes()
+        {
+            int pass, count;
+            uint i, j;
+            DISPLAY_DEVICE device;
+
+            device = new DISPLAY_DEVICE();
+            device.cb = Marshal.SizeOf(device);
+
+            // Get the primary display in the first pass
+            for (pass = 0; pass < 2; ++pass)
+            {
+                for (i = 0; ; ++i)
+                {
+                    string deviceName;
+
+                    if (!Native.EnumDisplayDevices(null, i, ref device, 0)) break;
+                    if ((device.StateFlags & DisplayDeviceStateFlags.AttachedToDesktop) == 0) continue;
+                    if (pass == 0)
+                    {
+                        if ((device.StateFlags & DisplayDeviceStateFlags.PrimaryDevice) == 0) continue;
+                    }
+                    else
+                    {
+                        if ((device.StateFlags & DisplayDeviceStateFlags.PrimaryDevice) != 0) continue;
+                    }
+                    deviceName = device.DeviceName;
+                    Debug.WriteLine("Device: {0}", deviceName);
+                    count = 0;
+                    for (j = 0; ; ++j)
+                    {
+                        if (!Native.EnumDisplayDevices(deviceName, j, ref device, 0)) break;
+                        if ((device.StateFlags & DisplayDeviceStateFlags.AttachedToDesktop) == 0) continue;
+                        if (pass == 0)
+                        {
+                            if ((device.StateFlags & DisplayDeviceStateFlags.PrimaryDevice) == 0) continue;
+                        }
+                        else
+                        {
+                            if ((device.StateFlags & DisplayDeviceStateFlags.PrimaryDevice) != 0) continue;
+                        }
+                        count += AddDisplay(device.DeviceName) ? 1 : 0;
+                    }
+                    if (count == 0)
+                    {
+                        AddDisplay(deviceName);
+                    }
+                }
+            }
+            if (_numDisplays == 0)
+            {
+                throw new Exception("No displays available");
+            }
+        }
     }
 
     struct VideoDisplay
@@ -449,7 +473,7 @@ namespace Xstream
         public DisplayMode desktop_mode;
         public DisplayMode current_mode;
 
-        public string driverdata;
+        public string deviceName;
     }
 
     struct DisplayMode

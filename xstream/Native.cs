@@ -629,17 +629,13 @@ namespace Xstream
         public uint biClrUsed;
         public uint biClrImportant;
 
-        public void Init()
-        {
-            biSize = (uint)Marshal.SizeOf(this);
-        }
+        public void Init() => biSize = (uint)Marshal.SizeOf(this);
     }
 
     [StructLayout(LayoutKind.Sequential)]
     public struct BITMAPINFO
     {
         public BITMAPINFOHEADER bmiHeader;
-
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 256)]
         public uint[] bmiColors;
     }
