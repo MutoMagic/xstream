@@ -81,14 +81,20 @@ namespace Xstream
 
         #region 内存
 
-        public static void Delay(int ms) => Delay((uint)ms);
-
-        public static void Delay(uint ms)
+        public static int memcmp<T1, T2>(T1 obj1, T2 obj2, int count)
         {
-            uint max_delay = 0xFFFFFFFF / 1000U;
-            if (ms > max_delay)
-                ms = max_delay;
-            Sleep(ms);// Thread.Sleep(millisecondsTimeout < 0) 会报错
+            GCHandle h1 = GCHandle.Alloc(obj1);
+            GCHandle h2 = GCHandle.Alloc(obj2);
+
+            try
+            {
+                return memcmp(h1.AddrOfPinnedObject(), h2.AddrOfPinnedObject(), (size_t)count);
+            }
+            finally
+            {
+                h1.Free();
+                h2.Free();
+            }
         }
 
         [DllImport("kernel32.dll", SetLastError = true)]
@@ -106,9 +112,22 @@ namespace Xstream
         [DllImport("kernel32.dll", ExactSpelling = true)]
         public static extern IntPtr GlobalSize(IntPtr handle);
 
+        [DllImport("msvcrt.dll")]
+        static extern int memcmp(IntPtr ptr1, IntPtr ptr2, size_t count);
+
         #endregion
 
         #region 线程
+
+        public static void Delay(int ms) => Delay((uint)ms);
+
+        public static void Delay(uint ms)
+        {
+            uint max_delay = 0xFFFFFFFF / 1000U;
+            if (ms > max_delay)
+                ms = max_delay;
+            Sleep(ms);// Thread.Sleep(millisecondsTimeout < 0) 会报错
+        }
 
         [DllImport("kernel32")]
         static extern void Sleep(uint dwMilliseconds);

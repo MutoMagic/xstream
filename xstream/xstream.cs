@@ -53,6 +53,8 @@ namespace Xstream
         delegate IntPtr GetHandleCallback();
         int _numDisplays;
         VideoDisplay[] _displays;
+        VideoDisplay PrimaryDisplay => _displays[0];
+        DisplayMode _fullscreenMode;
 
         public Xstream()
         {
@@ -65,6 +67,8 @@ namespace Xstream
 
             if (Config.Fullscreen)
             {
+                DisplayMode fullscreen_mode;
+
                 if (Config.Borderless)
                 {
                     //FormBorderStyle = FormBorderStyle.None;
@@ -75,7 +79,7 @@ namespace Xstream
                 style &= ~STYLE_MASK;
                 style |= STYLE_FULLSCREEN;
 
-                Rectangle bounds = Screen.PrimaryScreen.Bounds;
+                Rectangle bounds = GetDisplayBounds(PrimaryDisplay);
 
                 Native.SetWindowLongPtr(new HandleRef(this, Handle), GWL.STYLE, style);
                 Native.SetWindowPos(Handle
@@ -266,6 +270,88 @@ namespace Xstream
         static uint WM_(SDL_EventType msg) => USER + (uint)msg;
         static SDL_EventType SDL_(uint msg) => (SDL_EventType)(msg - USER);
 
+        #region modes
+
+        static int CmpModes(DisplayMode a, DisplayMode b)
+        {
+            if (a.w != b.w)
+            {
+                return b.w - a.w;
+            }
+            if (a.h != b.h)
+            {
+                return b.h - a.h;
+            }
+            if (a.refresh_rate != b.refresh_rate)
+            {
+                return b.refresh_rate - a.refresh_rate;
+            }
+            return 0;
+        }
+
+        static bool AddDisplayMode(ref VideoDisplay display, DisplayMode mode)
+        {
+            DisplayMode[] modes;
+            int i, nmodes;
+
+            // Make sure we don't already have the mode in the list
+            modes = display.display_modes;
+            nmodes = display.num_display_modes;
+            for (i = nmodes; i-- > 0;)
+            {
+                if (Native.memcmp(mode, modes[i], Marshal.SizeOf(mode)) == 0)
+                {
+                    return false;
+                }
+            }
+
+            // Go ahead and add the new mode
+            if (nmodes == display.max_display_modes)
+            {
+                modes = new DisplayMode[display.max_display_modes + 32];
+                display.display_modes?.CopyTo(modes, 0);
+                display.display_modes = modes;
+                display.max_display_modes += 32;
+            }
+            modes[nmodes] = mode;
+            display.num_display_modes++;
+
+            // Re-sort video modes
+            Array.Sort(display.display_modes, 0, display.num_display_modes
+                , Comparer<DisplayMode>.Create(CmpModes));
+
+            return true;
+        }
+
+        static void GetDisplayModes(ref VideoDisplay display)
+        {
+            DisplayMode mode = new DisplayMode();
+
+            for (int i = 0; ; ++i)
+            {
+                if (!GetDisplayMode(display.DeviceName, i, ref mode))
+                {
+                    break;
+                }
+
+                if (mode.format == Format.P8)
+                {
+                    // We don't support palettized modes now
+                    continue;
+                }
+
+                if (mode.format != Format.Unknown)
+                {
+                    AddDisplayMode(ref display, mode);
+                }
+            }
+
+            //if (display.display_modes == null)
+            //{
+            //    display.display_modes = new DisplayMode[display.max_display_modes];
+            //}
+        }
+
         static bool GetDisplayMode(string deviceName, int index, ref DisplayMode mode)
         {
             DEVMODE data;
@@ -291,7 +377,7 @@ namespace Xstream
             mode.w = devmode.dmPelsWidth;
             mode.h = devmode.dmPelsHeight;
             mode.refresh_rate = devmode.dmDisplayFrequency;
-            mode.driverdata = data;
+            mode.DeviceMode = data;
 
             if (index == Native.ENUM_CURRENT_SETTINGS
                 && (hdc = Native.CreateDC(deviceName, null, null, IntPtr.Zero)) != null)
@@ -327,7 +413,7 @@ namespace Xstream
                 }
                 else if (bmi.bmiHeader.biBitCount == 8)
                 {
-                    mode.format = Format.R3G3B2;// FIXME: It could be D3DFMT_UNKNOWN?
+                    mode.format = Format.P8;// FIXME: It could be D3DFMT_UNKNOWN?
                 }
                 else if (bmi.bmiHeader.biBitCount == 4)
                 {
@@ -354,7 +440,7 @@ namespace Xstream
                             mode.format = Format.X1R5G5B5;
                             break;
                         case 8:
-                            mode.format = Format.R3G3B2;
+                            mode.format = Format.P8;
                             break;
                         case 4:
                             mode.format = Format.Unknown;
@@ -403,7 +489,7 @@ namespace Xstream
             }
             display.desktop_mode = mod;
             display.current_mode = mod;
-            display.deviceName = deviceName;
+            display.DeviceName = deviceName;
             AddVideoDisplay(display);
             return true;
         }
@@ -462,6 +548,208 @@ namespace Xstream
                 throw new Exception("No displays available");
             }
         }
+
+        #endregion
+
+        static Rectangle GetDisplayBounds(VideoDisplay display)
+        {
+            DEVMODE data = display.current_mode.DeviceMode;
+            return new Rectangle(data.DUMMYUNIONNAME.dmPosition.X
+                , data.DUMMYUNIONNAME.dmPosition.Y
+                , data.dmPelsWidth
+                , data.dmPelsHeight);
+        }
+
+        static int GetNumDisplayModesForDisplay(ref VideoDisplay display)
+        {
+            if (display.num_display_modes == 0)
+            {
+                GetDisplayModes(ref display);
+                Array.Sort(display.display_modes, 0, display.num_display_modes
+                    , Comparer<DisplayMode>.Create(CmpModes));
+            }
+            return display.num_display_modes;
+        }
+
+        static DisplayMode? GetClosestDisplayModeForDisplay(
+            ref VideoDisplay display,
+            DisplayMode mode,
+            ref DisplayMode closest)
+        {
+            Format target_format;
+            int target_refresh_rate;
+            int i;
+            DisplayMode? current, match;
+
+            // Default to the desktop format
+            if (mode.format != Format.Unknown)
+            {
+                target_format = mode.format;
+            }
+            else
+            {
+                target_format = display.desktop_mode.format;
+            }
+
+            // Default to the desktop refresh rate
+            if (mode.refresh_rate != 0)
+            {
+                target_refresh_rate = mode.refresh_rate;
+            }
+            else
+            {
+                target_refresh_rate = display.desktop_mode.refresh_rate;
+            }
+
+            match = null;
+            for (i = 0; i < GetNumDisplayModesForDisplay(ref display); ++i)
+            {
+                current = display.display_modes[i];
+
+                if (current.Value.w != 0 && (current.Value.w < mode.w))
+                {
+                    // Out of sorted modes large enough here
+                    break;
+                }
+                if (current.Value.h != 0 && (current.Value.h < mode.h))
+                {
+                    if (current.Value.w != 0 && (current.Value.w == mode.w))
+                    {
+                        // Out of sorted modes large enough here
+                        break;
+                    }
+
+                    /*
+                     * Wider, but not tall enough, due to a different
+                     * aspect ratio. This mode must be skipped, but closer
+                     * modes may still follow.
+                     */
+                    continue;
+                }
+                if (match.HasValue || current.Value.w < mode.w || current.Value.h < mode.h)
+                {
+                    match = current;
+                    continue;
+                }
+                if (current.Value.format != match.Value.format)
+                {
+                    // Sorted highest depth to lowest
+                    if (current.Value.format == target_format)
+                    {
+                        match = current;
+                    }
+                    continue;
+                }
+                if (current.Value.refresh_rate != match.Value.refresh_rate)
+                {
+                    // Sorted highest refresh to lowest
+                    if (current.Value.refresh_rate >= target_refresh_rate)
+                    {
+                        match = current;
+                    }
+                }
+            }
+            if (match.HasValue)
+            {
+                if (match.Value.format != Format.Unknown)
+                {
+                    closest.format = match.Value.format;
+                }
+                else
+                {
+                    closest.format = mode.format;
+                }
+                if (match.Value.w != 0 && match.Value.h != 0)
+                {
+                    closest.w = match.Value.w;
+                    closest.h = match.Value.h;
+                }
+                else
+                {
+                    closest.w = mode.w;
+                    closest.h = mode.h;
+                }
+                if (match.Value.refresh_rate != 0)
+                {
+                    closest.refresh_rate = match.Value.refresh_rate;
+                }
+                else
+                {
+                    closest.refresh_rate = mode.refresh_rate;
+                }
+                closest.DeviceMode = match.Value.DeviceMode;
+
+                // Pick some reasonable defaults if the app and driver don't care
+                if (closest.format == Format.Unknown)
+                {
+                    closest.format = Format.X8R8G8B8;
+                }
+                if (closest.w == 0)
+                {
+                    closest.w = 640;
+                }
+                if (closest.h == 0)
+                {
+                    closest.h = 480;
+                }
+                return closest;
+            }
+            return null;
+        }
+
+        int GetWindowDisplayIndex()
+        {
+            int i, dist;
+            int closest = -1;
+            int closest_dist = 0x7FFFFFFF;
+            Point center;
+            Point delta;
+            Rectangle rect;
+
+            if (Config.Fullscreen)
+            {
+                return 0;
+            }
+
+            // Find the display containing the window
+            center = new Point(ClientRectangle.X + ClientRectangle.Width / 2
+                , ClientRectangle.Y + ClientRectangle.Height / 2);
+            for (i = 0; i < _numDisplays; ++i)
+            {
+                rect = GetDisplayBounds(_displays[i]);
+                // TODO
+            }
+
+            return closest;
+        }
+
+        DisplayMode GetWindowDisplayMode()
+        {
+            DisplayMode fullscreen_mode = _fullscreenMode;
+
+            if (fullscreen_mode.w == 0)
+            {
+                fullscreen_mode.w = ClientSize.Width;
+            }
+            if (fullscreen_mode.h == 0)
+            {
+                fullscreen_mode.h = ClientSize.Height;
+            }
+
+            // if in desktop size mode, just return the size of the desktop
+            if (Config.Borderless)
+            {
+                fullscreen_mode = PrimaryDisplay.desktop_mode;
+            }
+            else if (!GetClosestDisplayModeForDisplay(ref _displays[GetWindowDisplayIndex()]
+                , fullscreen_mode
+                , ref fullscreen_mode).HasValue)
+            {
+                throw new Exception("Couldn't find display mode match");
+            }
+
+            return fullscreen_mode;
+        }
     }
 
     struct VideoDisplay
@@ -473,7 +761,9 @@ namespace Xstream
         public DisplayMode desktop_mode;
         public DisplayMode current_mode;
 
-        public string deviceName;
+        public DisplayMode fullscreen_mode;
+
+        public string DeviceName;
     }
 
     struct DisplayMode
@@ -482,7 +772,8 @@ namespace Xstream
         public int w;// width
         public int h;// height
         public int refresh_rate;// refresh rate (or zero for unspecified)
-        public DEVMODE driverdata;// driver-specific data, initialize to null
+
+        public DEVMODE DeviceMode;
     }
 
     enum SDL_EventType : uint
