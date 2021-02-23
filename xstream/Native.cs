@@ -548,6 +548,8 @@ namespace Xstream
         public string DeviceKey;
     }
 
+    #region DEVMODEA
+
     [StructLayout(LayoutKind.Sequential)]
     public struct DUMMYSTRUCTNAME
     {
@@ -622,6 +624,8 @@ namespace Xstream
         public int dmPanningWidth;
         public int dmPanningHeight;
     }
+
+    #endregion
 
     public enum BitmapCompressionMode : uint
     {

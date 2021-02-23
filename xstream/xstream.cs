@@ -282,6 +282,10 @@ namespace Xstream
             {
                 return b.h - a.h;
             }
+            if (a.format != b.format)
+            {
+                return b.format - a.format;// 降序排列
+            }
             if (a.refresh_rate != b.refresh_rate)
             {
                 return b.refresh_rate - a.refresh_rate;
@@ -308,10 +312,9 @@ namespace Xstream
             // Go ahead and add the new mode
             if (nmodes == display.max_display_modes)
             {
-                modes = new DisplayMode[display.max_display_modes + 32];
+                modes = new DisplayMode[display.max_display_modes += 32];
                 display.display_modes?.CopyTo(modes, 0);
                 display.display_modes = modes;
-                display.max_display_modes += 32;
             }
             modes[nmodes] = mode;
             display.num_display_modes++;
@@ -579,10 +582,11 @@ namespace Xstream
             Format target_format;
             int target_refresh_rate;
             int i;
-            DisplayMode? current, match;
+            DisplayMode current;
+            DisplayMode? match;
 
             // Default to the desktop format
-            if (mode.format != Format.Unknown)
+            if (mode.format != 0)
             {
                 target_format = mode.format;
             }
@@ -606,14 +610,14 @@ namespace Xstream
             {
                 current = display.display_modes[i];
 
-                if (current.Value.w != 0 && (current.Value.w < mode.w))
+                if (current.w != 0 && (current.w < mode.w))
                 {
                     // Out of sorted modes large enough here
                     break;
                 }
-                if (current.Value.h != 0 && (current.Value.h < mode.h))
+                if (current.h != 0 && (current.h < mode.h))
                 {
-                    if (current.Value.w != 0 && (current.Value.w == mode.w))
+                    if (current.w != 0 && (current.w == mode.w))
                     {
                         // Out of sorted modes large enough here
                         break;
@@ -626,24 +630,24 @@ namespace Xstream
                      */
                     continue;
                 }
-                if (match.HasValue || current.Value.w < mode.w || current.Value.h < mode.h)
+                if (!match.HasValue || current.w < match.Value.w || current.h < match.Value.h)
                 {
                     match = current;
                     continue;
                 }
-                if (current.Value.format != match.Value.format)
+                if (current.format != match.Value.format)
                 {
                     // Sorted highest depth to lowest
-                    if (current.Value.format == target_format)
+                    if (current.format == target_format)
                     {
                         match = current;
                     }
                     continue;
                 }
-                if (current.Value.refresh_rate != match.Value.refresh_rate)
+                if (current.refresh_rate != match.Value.refresh_rate)
                 {
                     // Sorted highest refresh to lowest
-                    if (current.Value.refresh_rate >= target_refresh_rate)
+                    if (current.refresh_rate >= target_refresh_rate)
                     {
                         match = current;
                     }
@@ -651,7 +655,7 @@ namespace Xstream
             }
             if (match.HasValue)
             {
-                if (match.Value.format != Format.Unknown)
+                if (match.Value.format != 0)
                 {
                     closest.format = match.Value.format;
                 }
@@ -680,7 +684,7 @@ namespace Xstream
                 closest.DeviceMode = match.Value.DeviceMode;
 
                 // Pick some reasonable defaults if the app and driver don't care
-                if (closest.format == Format.Unknown)
+                if (closest.format == 0)
                 {
                     closest.format = Format.X8R8G8B8;
                 }
