@@ -274,9 +274,9 @@ namespace Xstream
                     {
                         if (convert)
                         {
-                            config.VideoMaximumWidth = r.W;
                             convert = false;
                         }
+                        config.VideoMaximumWidth = r.W;
 
                         n = true;
                     }
