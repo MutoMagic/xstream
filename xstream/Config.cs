@@ -181,7 +181,7 @@
     {
         public string TokenFilePath
         {
-            get { return _tokenFilePath; }
+            get => _tokenFilePath;
             set
             {
                 _tokenFilePath = value;
@@ -199,7 +199,7 @@
             }
         }
         public string IP { get; set; }
-        public CFG_Quality Quality { get; private set; }
+        public CFG_Quality Quality { get; set; }
 
         string _tokenFilePath;
     }

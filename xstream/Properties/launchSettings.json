@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Xstream": {
+      "commandName": "Project",
+      "commandLineArgs": "pcl"
+    }
+  }
+}

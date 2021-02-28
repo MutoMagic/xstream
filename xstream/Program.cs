@@ -23,98 +23,65 @@ namespace Xstream
 
         static string _userHash;
         static string _xToken;
+        static string _tokenFilePath;
 
-        /// <summary>
-        /// Authenticate with Xbox Live / refresh tokens
-        /// </summary>
-        /// <param name="tokenFilePath">File to json tokenfile</param>
-        /// <param name="ae">AuthenticateException</param>
-        /// <returns>True if successful, otherwise false</returns>
-        static bool Authenticate(string tokenFilePath, out Exception ae)
+        static void Authenticate()
         {
-            ae = null;
-
-            if (string.IsNullOrEmpty(tokenFilePath))
+            if (string.IsNullOrEmpty(_tokenFilePath))
             {
-                ae = new ArgumentNullException("tokenFilePath IsNullOrEmpty");
-                return false;
+                throw Shell.Abort("The tokenFilePath IsNullOrEmpty!", null);
             }
 
-            FileStream fs = new FileStream(tokenFilePath, FileMode.Open);
-            AuthenticationService auth = AuthenticationService.LoadFromFile(fs);
+            AuthenticationService auth;
             try
             {
-                auth.Authenticate();
+                using (FileStream fs = new FileStream(_tokenFilePath, FileMode.Open))
+                    (auth = AuthenticationService.LoadFromFile(fs)).Authenticate();
             }
             catch (Exception e)
             {
-                ae = e;
-                return false;
+                throw Shell.Abort($"Failed to refresh XBL tokens, error: {e.Message}", e);
             }
-            fs.Close();
-
             _userHash = auth.XToken.UserInformation.Userhash;
             _xToken = auth.XToken.Jwt;
-            return true;
         }
 
-        static bool Authenticate(
-            string url,
-            string tokenFilePath,
-            out AuthenticationService auth,
-            out FileStream tokenOutputFile,
-            out Exception ae,
-            out Exception fe)
+        static void Authenticate(string url)
         {
-            tokenOutputFile = null;
-            ae = null;
-            fe = null;
-
-            // Call requestUrl via WebWidget or manually and authenticate
-            WindowsLiveResponse rep = AuthenticationService.ParseWindowsLiveResponse(url);
-            auth = new AuthenticationService(rep);
+            AuthenticationService auth;
             try
             {
-                auth.Authenticate();
+                // Call requestUrl via WebWidget or manually and authenticate
+                WindowsLiveResponse rep = AuthenticationService.ParseWindowsLiveResponse(url);
+                (auth = new AuthenticationService(rep)).Authenticate();
             }
             catch (Exception e)
             {
-                ae = e;
-                return false;
+                throw Shell.Abort($"Authentication failed, error: {e.Message}", e);
             }
 
-            // Save token to JSON
+            FileStream tokenOutputFile;
             try
             {
-                tokenOutputFile = new FileStream(tokenFilePath, FileMode.Create);
+                using (tokenOutputFile = new FileStream(_tokenFilePath, FileMode.Create))
+                    auth.DumpToFile(tokenOutputFile);// Save token to JSON
             }
             catch (Exception e)
             {
-                fe = e;
-                return false;
+                throw Shell.Abort("Failed to open token outputfile \'{0}\', error: {1}", e
+                    , _tokenFilePath, e.Message);
             }
-            auth.DumpToFile(tokenOutputFile);
-            tokenOutputFile.Close();
-
             _userHash = auth.XToken.UserInformation.Userhash;
             _xToken = auth.XToken.Jwt;
-            return true;
+
+            Shell.WriteLine(auth.XToken);
+            Shell.WriteLine(auth.UserInformation);
+            Shell.WriteLine("Storing tokens to file \'{0}\' on successful auth"
+                , tokenOutputFile.Name);
         }
 
-        /// <summary>
-        /// Connect to console, request Broadcast Channel and start gamestream
-        /// </summary>
-        /// <param name="ipAddress">IP address of console</param>
-        /// <param name="gamestreamConfig">Desired gamestream configuration</param>
-        /// <param name="ce">ConnectException</param>
-        /// <returns>Null if failed</returns>
-        static GamestreamSession ConnectToConsole(
-            string ipAddress,
-            GamestreamConfiguration gamestreamConfig,
-            out Exception ce)
+        static GamestreamSession ConnectToConsole(string ipAddress, GamestreamConfiguration gamestreamConfig)
         {
-            ce = null;
-
             try
             {
                 // 如果Task失败了GetAwaiter()会直接抛出异常，而Task.Wait()会抛出AggregateException
@@ -123,10 +90,17 @@ namespace Xstream
                 return client.BroadcastChannel.StartGamestreamAsync(gamestreamConfig)
                     .GetAwaiter().GetResult();
             }
+            catch (SmartGlassException e)
+            {
+                throw Shell.Abort($"Failed to connect: {e.Message}", e);
+            }
+            catch (TimeoutException e)
+            {
+                throw Shell.Abort($"Timeout while connecting: {e.Message}", e);
+            }
             catch (Exception e)
             {
-                ce = e;
-                return null;
+                throw Shell.Abort(e.Message, e);
             }
         }
 
@@ -134,65 +108,45 @@ namespace Xstream
         ///  The main entry point for the application.
         /// </summary>
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
             Native.AllocConsole();
 
-#if DEBUG
-            string tokenFilePath = "pcl";
-#else
-            Console.Write("tokenFilePath: ");
-            string tokenFilePath = Console.ReadLine();
-#endif
-
-            if (File.Exists(tokenFilePath))
+            if (args.Length == 0)
             {
-                if (!Authenticate(tokenFilePath, out Exception ae))
-                {
-                    Shell.WriteLine($"Error: Failed to refresh XBL tokens, error: {ae.Message}");
-                    Shell.PressAnyKeyToContinue();
-                    return;
-                }
+                _tokenFilePath = Shell.WriteReadLine("tokenFilePath: ");
             }
             else
             {
-                Shell.WriteLine("Warning: '{0}' file not found.\n", tokenFilePath);
+                _tokenFilePath = args[0];
+            }
+
+            Config.CurrentMapping.TokenFilePath = _tokenFilePath;
+            switch (args.Length)
+            {
+                case 3:
+                    Config.CurrentMapping.Quality = Config.GetQuality(args[2]);
+                    goto case 2;
+                case 2:
+                    Config.CurrentMapping.IP = args[1];
+                    break;
+            }
+
+            if (File.Exists(_tokenFilePath))
+            {
+                Authenticate();
+            }
+            else
+            {
+                Shell.Warning("\'{0}\' file not found.\n", _tokenFilePath);
                 Shell.WriteLine("1) Open following URL in your WebBrowser:\n\n{0}\n\n"
                     + "2) Authenticate with your Microsoft Account\n"
                     + "3) Paste returned URL from addressbar: \n"
                     , AuthenticationService.GetWindowsLiveAuthenticationUrl());
 
-                if (Authenticate(Console.ReadLine(), tokenFilePath
-                    , out AuthenticationService auth
-                    , out FileStream tokenOutputFile
-                    , out Exception ae
-                    , out Exception fe))
-                {
-                    Console.WriteLine(auth.XToken);
-                    Console.WriteLine(auth.UserInformation);
-
-                    Shell.WriteLine("Storing tokens to file \'{0}\' on successful auth",
-                            tokenOutputFile.Name);
-                }
-                else
-                {
-                    if (ae != null)
-                    {
-                        Shell.WriteLine($"Error: Authentication failed, error: {ae.Message}");
-                    }
-
-                    if (fe != null)
-                    {
-                        Shell.WriteLine("Error: Failed to open token outputfile \'{0}\', error: {1}",
-                            tokenOutputFile, fe.Message);
-                    }
-
-                    Shell.PressAnyKeyToContinue();
-                    return;
-                }
+                Authenticate(Shell.WriteReadLine());
             }
 
-            Config.CurrentMapping.TokenFilePath = tokenFilePath;
             if (Config.CurrentMapping.IP.Length == 0)
             {
                 Shell.WriteLine("{0,-15} {1,-36} {2,-15} {3,-16}", "Name", "HardwareId", "Address", "LiveId");
@@ -206,8 +160,7 @@ namespace Xstream
                         , device.LiveId);
                 }
 
-                Console.Write("Input IP Address or hostname: ");
-                Config.CurrentMapping.IP = Console.ReadLine();
+                Config.CurrentMapping.IP = Shell.WriteReadLine("Input IP Address or hostname: ");
             }
 
             // Get general gamestream configuration
@@ -281,8 +234,9 @@ namespace Xstream
                         n = true;
                     }
 
-                    Shell.WriteLine((n ? "Note: " : "")
-                        + "{0}x{1} Color:{2} Frequency:{3} AspectRatio[{4}]"
+                    Shell.WriteLine("{0}x{1} Color:{2} Frequency:{3} AspectRatio[{4}]"
+                        , n ? Shell.NOTE_COLOR : Shell.DEFAULT_COLOR
+                        , true
                         , vDevMode.dmPelsWidth
                         , vDevMode.dmPelsHeight
                         , 1L << vDevMode.dmBitsPerPel
@@ -293,32 +247,20 @@ namespace Xstream
                 if (convert)
                 {
                     config.VideoMaximumWidth = TVResolution.Width(config.VideoMaximumHeight, TVResolution.H16V9);
-                    Shell.WriteLine("Warning: 未在XboxTVResolution与ComputerTVResolution中找到对应的分辨率");
-                    Shell.WriteLine("Warning: {0}x{1}", config.VideoMaximumWidth, config.VideoMaximumHeight);
+                    Shell.Warning("未在XboxTVResolution与ComputerTVResolution中找到对应的分辨率，计算得出{0}x{1}"
+                        , config.VideoMaximumWidth, config.VideoMaximumHeight);
                 }
             }
 
             Shell.WriteLine($"Connecting to {Config.CurrentMapping.IP}...");
-            GamestreamSession session = ConnectToConsole(Config.CurrentMapping.IP, config, out Exception ce);
-            if (session == null)
-            {
-                if (ce is SmartGlassException)
-                    Shell.WriteLine($"Error: Failed to connect: {ce.Message}");
-                else if (ce is TimeoutException)
-                    Shell.WriteLine($"Error: Timeout while connecting: {ce.Message}");
-                else
-                    Shell.WriteLine($"Error: {ce}");
-
-                Shell.PressAnyKeyToContinue();
-                return;
-            }
+            GamestreamSession session = ConnectToConsole(Config.CurrentMapping.IP, config);
 
             Shell.WriteLine($"Connecting to NANO // TCP: {session.TcpPort}, UDP: {session.UdpPort}");
             Nano = new NanoClient(Config.CurrentMapping.IP, session);
             try
             {
                 // General Handshaking & Opening channels
-                Shell.WriteLine($"Running protocol init...");
+                Shell.WriteLine("Running protocol init...");
                 Nano.InitializeProtocolAsync().Wait();
 
                 // Start Controller input channel
@@ -340,16 +282,16 @@ namespace Xstream
                 // Tell console to start sending AV frames
                 Shell.WriteLine("Starting stream...");
                 Nano.StartStreamAsync().Wait();
-                Shell.WriteLine("Note: Stream is running");
+                Shell.Note("Stream is running");
             }
             catch (Exception e)
             {
-                Shell.WriteLine($"Error: Failed to init Nano, error: {e}");
-                Shell.PressAnyKeyToContinue();
-                return;
+                throw Shell.Abort($"Failed to init Nano, error: {e.Message}", e);
             }
 
 #if !DEBUG
+            Trace.Listeners.Clear();
+            Trace.Listeners.Add(new Logger(_tokenFilePath));
             Native.FreeConsole();
 #endif
 

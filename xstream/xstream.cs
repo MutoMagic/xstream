@@ -34,14 +34,15 @@ namespace Xstream
 
         public Xstream()
         {
+            InitializeComponent();
+
             InitModes();
 
-            InitializeComponent();
+            VideoDisplay display = _displays[GetWindowDisplayIndex()];
+            Rectangle bounds = GetDisplayBounds(display);
 
             _windowed.Width = Program.Nano.Configuration.VideoMaximumWidth;
             _windowed.Height = Program.Nano.Configuration.VideoMaximumHeight;
-
-            Rectangle bounds = GetDisplayBounds(PrimaryDisplay);
             _windowed.X = bounds.X + (bounds.Width - _windowed.Width) / 2;
             _windowed.Y = bounds.Y + (bounds.Height - _windowed.Height) / 2;
 
@@ -71,6 +72,8 @@ namespace Xstream
             {
                 Native.DestroyIcon(Icon.Handle);
             };
+
+            Text = Config.CurrentMapping.TokenFilePath;
 
             KeyPreview = Config.KeyPreview;
             KeyDown += (sender, e) =>
@@ -658,7 +661,7 @@ namespace Xstream
             }
             if (_numDisplays == 0)
             {
-                throw new Exception("No displays available");
+                throw Shell.Abort("No displays available", null);
             }
         }
 
@@ -678,16 +681,81 @@ namespace Xstream
             // if in desktop size mode, just return the size of the desktop
             if (Config.Borderless)
             {
-                fullscreen_mode = PrimaryDisplay.desktop_mode;
+                fullscreen_mode = _displays[GetWindowDisplayIndex()].desktop_mode;
             }
             else if (!GetClosestDisplayModeForDisplay(ref _displays[GetWindowDisplayIndex()]
                 , fullscreen_mode
                 , ref fullscreen_mode).HasValue)
             {
-                throw new Exception("Couldn't find display mode match");
+                throw Shell.Abort("Couldn't find display mode match", null);
             }
 
             return fullscreen_mode;
+        }
+
+        void SetDisplayMode(VideoDisplay display, ref DisplayMode mode)
+        {
+            DISP_CHANGE status = Native.ChangeDisplaySettingsEx(display.DeviceName
+                , ref mode.DeviceMode
+                , IntPtr.Zero
+                , ChangeDisplaySettingsFlags.CDS_FULLSCREEN
+                , IntPtr.Zero);
+            if (status != DISP_CHANGE.Successful)
+            {
+                throw Shell.Abort($"ChangeDisplaySettingsEx() failed: {status}", null);
+            }
+            Native.EnumDisplaySettings(display.DeviceName, Native.ENUM_CURRENT_SETTINGS, ref mode.DeviceMode);
+        }
+
+        void SetDisplayModeForDisplay(ref VideoDisplay display, DisplayMode? mod)
+        {
+            DisplayMode display_mode;
+            DisplayMode current_mode;
+
+            if (mod.HasValue)
+            {
+                display_mode = mod.Value;
+
+                // Default to the current mode
+                if (display_mode.format == 0)
+                {
+                    display_mode.format = display.current_mode.format;
+                }
+                if (display_mode.w == 0)
+                {
+                    display_mode.w = display.current_mode.w;
+                }
+                if (display_mode.h == 0)
+                {
+                    display_mode.h = display.current_mode.h;
+                }
+                if (display_mode.refresh_rate == 0)
+                {
+                    display_mode.refresh_rate = display.current_mode.refresh_rate;
+                }
+
+                // Get a good video mode, the closest one possible
+                if (!GetClosestDisplayModeForDisplay(ref display, display_mode, ref display_mode).HasValue)
+                {
+                    throw Shell.Abort("No video mode large enough for {0}x{1}", null
+                        , display_mode.w, display_mode.h);
+                }
+            }
+            else
+            {
+                display_mode = display.desktop_mode;
+            }
+
+            // See if there's anything left to do
+            current_mode = display.current_mode;
+            if (Native.memcmp(display_mode, current_mode, Marshal.SizeOf(display_mode)) == 0)
+            {
+                return;
+            }
+
+            // Actually change the display mode
+            SetDisplayMode(display, ref display_mode);
+            display.current_mode = display_mode;
         }
 
         #endregion
@@ -924,7 +992,29 @@ namespace Xstream
 
         void UpdateFullscreenMode(bool fullscreen)
         {
+            int displayIndex = GetWindowDisplayIndex();
+            DisplayMode fullscreen_mode = GetWindowDisplayMode();
 
+            if (fullscreen)
+            {
+                // only do the mode change if we want exclusive fullscreen
+                if (!Config.Borderless)
+                {
+                    SetDisplayModeForDisplay(ref _displays[displayIndex], fullscreen_mode);
+                }
+                else
+                {
+                    SetDisplayModeForDisplay(ref _displays[displayIndex], null);
+                }
+
+                SetWindowFullscreen(_displays[displayIndex], true);
+                return;
+            }
+
+            // Nope, restore the desktop mode
+            SetDisplayModeForDisplay(ref _displays[displayIndex], null);
+
+            SetWindowFullscreen(_displays[displayIndex], false);
         }
     }
 
@@ -936,8 +1026,6 @@ namespace Xstream
         public DisplayMode[] display_modes;
         public DisplayMode desktop_mode;
         public DisplayMode current_mode;
-
-        public DisplayMode fullscreen_mode;
 
         public string DeviceName;
     }

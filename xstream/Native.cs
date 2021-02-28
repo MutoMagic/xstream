@@ -83,17 +83,23 @@ namespace Xstream
 
         public static int memcmp<T1, T2>(T1 obj1, T2 obj2, int count)
         {
-            GCHandle h1 = GCHandle.Alloc(obj1);
-            GCHandle h2 = GCHandle.Alloc(obj2);
-
+            //GCHandle h1 = GCHandle.Alloc(obj1, GCHandleType.Pinned);
+            //GCHandle h2 = GCHandle.Alloc(obj2, GCHandleType.Pinned);
+            IntPtr ptr1 = Marshal.AllocHGlobal(count);
+            IntPtr ptr2 = Marshal.AllocHGlobal(count);
+            Marshal.StructureToPtr(obj1, ptr1, true);
+            Marshal.StructureToPtr(obj2, ptr2, true);
             try
             {
-                return memcmp(h1.AddrOfPinnedObject(), h2.AddrOfPinnedObject(), (size_t)count);
+                //return memcmp(h1.AddrOfPinnedObject(), h2.AddrOfPinnedObject(), (size_t)count);
+                return memcmp(ptr1, ptr2, (size_t)count);
             }
             finally
             {
-                h1.Free();
-                h2.Free();
+                //h1.Free();
+                //h2.Free();
+                Marshal.FreeHGlobal(ptr1);
+                Marshal.FreeHGlobal(ptr2);
             }
         }
 
@@ -565,6 +571,14 @@ namespace Xstream
         public static extern bool PostThreadMessage(uint threadId, uint msg, IntPtr wParam, IntPtr lParam);
 
         [DllImport("user32.dll")]
+        public static extern DISP_CHANGE ChangeDisplaySettingsEx(
+            string lpszDeviceName,
+            ref DEVMODE lpDevMode,
+            IntPtr hwnd,
+            ChangeDisplaySettingsFlags dwflags,
+            IntPtr lParam);
+
+        [DllImport("user32.dll")]
         public static extern bool AdjustWindowRectEx(ref RECT lpRect, uint dwStyle, bool bMenu, uint dwExStyle);
 
         [DllImport("user32.dll")]
@@ -948,6 +962,35 @@ namespace Xstream
         public uint time;
         public Point p;
         //public uint lPrivate;
+    }
+
+    public enum DISP_CHANGE : int
+    {
+        Successful = 0,
+        Restart = 1,
+        Failed = -1,
+        BadMode = -2,
+        NotUpdated = -3,
+        BadFlags = -4,
+        BadParam = -5,
+        BadDualView = -6
+    }
+
+    [Flags()]
+    public enum ChangeDisplaySettingsFlags : uint
+    {
+        CDS_NONE = 0,
+        CDS_UPDATEREGISTRY = 0x00000001,
+        CDS_TEST = 0x00000002,
+        CDS_FULLSCREEN = 0x00000004,
+        CDS_GLOBAL = 0x00000008,
+        CDS_SET_PRIMARY = 0x00000010,
+        CDS_VIDEOPARAMETERS = 0x00000020,
+        CDS_ENABLE_UNSAFE_MODES = 0x00000100,
+        CDS_DISABLE_UNSAFE_MODES = 0x00000200,
+        CDS_RESET = 0x40000000,
+        CDS_RESET_EX = 0x20000000,
+        CDS_NORESET = 0x10000000
     }
 
     [StructLayout(LayoutKind.Sequential)]
