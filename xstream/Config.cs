@@ -2,8 +2,93 @@
 {
     public static class Config
     {
-        public static CFG_Mapping CurrentMapping { get; private set; }
-        public static CFG_Quality DefaultQuality { get; private set; }
+        public class Mapping
+        {
+            public string TokenFilePath
+            {
+                get => _tokenFilePath;
+                set
+                {
+                    _tokenFilePath = value;
+
+                    string[] mapping = GetMappingString(_tokenFilePath).Split(',');
+                    IP = mapping[0];
+                    if (mapping.Length == 2)
+                    {
+                        Quality = GetQuality(mapping[1]);
+                    }
+                    else
+                    {
+                        Quality = DefaultQuality;
+                    }
+                }
+            }
+            public string IP { get; private set; }
+            public Quality Quality { get; private set; }
+
+            string _tokenFilePath;
+
+            public void Init(string[] args)
+            {
+                TokenFilePath = args[0];
+                switch (args.Length)
+                {
+                    case 3:
+                        Quality = GetQuality(args[2]);
+                        goto case 2;
+                    case 2:
+                        IP = args[1];
+                        break;
+                }
+            }
+
+            public void Init(string mapstr) => Init(mapstr.Split(' '));
+        }
+
+        public class Quality
+        {
+            public string Name { get; private set; }
+
+            public int Unknown1 { get; private set; }
+            public int Unknown2 { get; private set; }
+            public int Unknown3 { get; private set; }
+            public int Unknown4 { get; private set; }
+            public int Unknown5 { get; private set; }
+            public int Unknown6 { get; private set; }
+            public int Unknown7 { get; private set; }
+            public int Unknown8 { get; private set; }
+
+            public Quality()
+            {
+                Name = null;
+
+                Unknown1 = 6000002;
+                Unknown2 = 720;
+                Unknown3 = 60;
+                Unknown4 = 3600;
+                Unknown5 = 0;
+                Unknown6 = 40;
+                Unknown7 = 70;
+                Unknown8 = 200;
+            }
+
+            public Quality(string quality)
+            {
+                Name = quality;
+
+                Unknown1 = GetConfigurationInt(quality, "Unknown1");
+                Unknown2 = GetConfigurationInt(quality, "Unknown2");
+                Unknown3 = GetConfigurationInt(quality, "Unknown3");
+                Unknown4 = GetConfigurationInt(quality, "Unknown4");
+                Unknown5 = GetConfigurationInt(quality, "Unknown5");
+                Unknown6 = GetConfigurationInt(quality, "Unknown6");
+                Unknown7 = GetConfigurationInt(quality, "Unknown7");
+                Unknown8 = GetConfigurationInt(quality, "Unknown8");
+            }
+        }
+
+        public static Mapping CurrentMapping { get; private set; }
+        public static Quality DefaultQuality { get; private set; }
 
         public static bool Fullscreen { get; private set; }
         public static bool Borderless { get; private set; }
@@ -41,8 +126,8 @@
 
         static Config()
         {
-            CurrentMapping = new CFG_Mapping();
-            DefaultQuality = new CFG_Quality();
+            CurrentMapping = new Mapping();
+            DefaultQuality = new Quality();
             DefaultQuality = GetQuality(GetSettingString("GAME_STREAMING_AVAILABLE_QUALITY_SETTINGS"));
 
             switch (GetSettingString("fullscreen"))
@@ -96,7 +181,7 @@
             }
         }
 
-        public static CFG_Quality GetQuality(string quality)
+        public static Quality GetQuality(string quality)
         {
             if (string.IsNullOrEmpty(quality))
             {
@@ -108,7 +193,7 @@
                 return DefaultQuality;
             }
 
-            return new CFG_Quality(quality);
+            return new Quality(quality);
         }
 
         public static bool GetSettingBool(string key) => GetConfigurationBool("SETTINGS", key);
@@ -133,74 +218,5 @@
 
         public static string GetConfigurationString(string section, string key)
             => Native.GetPrivateProfileString(section, key, "", "./cfg.ini");
-    }
-
-    public class CFG_Quality
-    {
-        public string Name { get; private set; }
-
-        public int Unknown1 { get; private set; }
-        public int Unknown2 { get; private set; }
-        public int Unknown3 { get; private set; }
-        public int Unknown4 { get; private set; }
-        public int Unknown5 { get; private set; }
-        public int Unknown6 { get; private set; }
-        public int Unknown7 { get; private set; }
-        public int Unknown8 { get; private set; }
-
-        public CFG_Quality()
-        {
-            Name = null;
-
-            Unknown1 = 6000002;
-            Unknown2 = 720;
-            Unknown3 = 60;
-            Unknown4 = 3600;
-            Unknown5 = 0;
-            Unknown6 = 40;
-            Unknown7 = 70;
-            Unknown8 = 200;
-        }
-
-        public CFG_Quality(string quality)
-        {
-            Name = quality;
-
-            Unknown1 = Config.GetConfigurationInt(quality, "Unknown1");
-            Unknown2 = Config.GetConfigurationInt(quality, "Unknown2");
-            Unknown3 = Config.GetConfigurationInt(quality, "Unknown3");
-            Unknown4 = Config.GetConfigurationInt(quality, "Unknown4");
-            Unknown5 = Config.GetConfigurationInt(quality, "Unknown5");
-            Unknown6 = Config.GetConfigurationInt(quality, "Unknown6");
-            Unknown7 = Config.GetConfigurationInt(quality, "Unknown7");
-            Unknown8 = Config.GetConfigurationInt(quality, "Unknown8");
-        }
-    }
-
-    public class CFG_Mapping
-    {
-        public string TokenFilePath
-        {
-            get => _tokenFilePath;
-            set
-            {
-                _tokenFilePath = value;
-
-                string[] mapping = Config.GetMappingString(_tokenFilePath).Split(',');
-                IP = mapping[0];
-                if (mapping.Length == 2)
-                {
-                    Quality = Config.GetQuality(mapping[1]);
-                }
-                else
-                {
-                    Quality = Config.DefaultQuality;
-                }
-            }
-        }
-        public string IP { get; set; }
-        public CFG_Quality Quality { get; set; }
-
-        string _tokenFilePath;
     }
 }

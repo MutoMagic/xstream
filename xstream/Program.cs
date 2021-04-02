@@ -112,55 +112,48 @@ namespace Xstream
         {
             Native.AllocConsole();
 
-            if (args.Length == 0)
+            if (args.Length > 0)
             {
-                _tokenFilePath = Shell.WriteReadLine("tokenFilePath: ");
-            }
-            else
-            {
-                _tokenFilePath = args[0];
-            }
-
-            Config.CurrentMapping.TokenFilePath = _tokenFilePath;
-            switch (args.Length)
-            {
-                case 3:
-                    Config.CurrentMapping.Quality = Config.GetQuality(args[2]);
-                    goto case 2;
-                case 2:
-                    Config.CurrentMapping.IP = args[1];
-                    break;
-            }
-
-            if (File.Exists(_tokenFilePath))
-            {
+                Config.CurrentMapping.Init(args);
+                _tokenFilePath = Config.CurrentMapping.TokenFilePath;
                 Authenticate();
             }
             else
             {
-                Shell.Warning("\'{0}\' file not found.\n", _tokenFilePath);
-                Shell.WriteLine("1) Open following URL in your WebBrowser:\n\n{0}\n\n"
-                    + "2) Authenticate with your Microsoft Account\n"
-                    + "3) Paste returned URL from addressbar: \n"
-                    , AuthenticationService.GetWindowsLiveAuthenticationUrl());
+                _tokenFilePath = Shell.WriteReadLine("tokenFilePath: ");
+                Config.CurrentMapping.TokenFilePath = _tokenFilePath;
 
-                Authenticate(Shell.WriteReadLine());
-            }
-
-            if (Config.CurrentMapping.IP.Length == 0)
-            {
-                Shell.WriteLine("{0,-15} {1,-36} {2,-15} {3,-16}", "Name", "HardwareId", "Address", "LiveId");
-                IEnumerable<Device> devices = Device.DiscoverAsync().GetAwaiter().GetResult();
-                foreach (Device device in devices)
+                if (File.Exists(_tokenFilePath))
                 {
-                    Shell.WriteLine("{0,-15} {1,-36} {2,-15} {3,-16}"
-                        , device.Name
-                        , device.HardwareId
-                        , device.Address
-                        , device.LiveId);
+                    Authenticate();
+                }
+                else
+                {
+                    Shell.Warning("\'{0}\' file not found.\n", _tokenFilePath);
+                    Shell.WriteLine("1) Open following URL in your WebBrowser:\n\n{0}\n\n"
+                        + "2) Authenticate with your Microsoft Account\n"
+                        + "3) Paste returned URL from addressbar: \n"
+                        , AuthenticationService.GetWindowsLiveAuthenticationUrl());
+
+                    Authenticate(Shell.WriteReadLine());
                 }
 
-                Config.CurrentMapping.IP = Shell.WriteReadLine("Input IP Address or hostname: ");
+                if (Config.CurrentMapping.IP.Length == 0)
+                {
+                    Shell.WriteLine("{0,-15} {1,-36} {2,-15} {3,-16}", "Name", "HardwareId", "Address", "LiveId");
+                    IEnumerable<Device> devices = Device.DiscoverAsync().GetAwaiter().GetResult();
+                    foreach (Device device in devices)
+                    {
+                        Shell.WriteLine("{0,-15} {1,-36} {2,-15} {3,-16}"
+                            , device.Name
+                            , device.HardwareId
+                            , device.Address
+                            , device.LiveId);
+                    }
+
+                    string ip = Shell.WriteReadLine("Input IP Address or hostname: ");
+                    Config.CurrentMapping.Init($"{_tokenFilePath} ${ip}");
+                }
             }
 
             // Get general gamestream configuration
@@ -205,52 +198,7 @@ namespace Xstream
             config.AudioSyncDesiredLatency = Config.CurrentMapping.Quality.Unknown7;
             config.AudioSyncMaxLatency = Config.CurrentMapping.Quality.Unknown8;
 
-            if (TVResolution.SupportList.ContainsKey(config.VideoMaximumHeight))
-            {
-                // XboxTVResolution
-                config.VideoMaximumWidth = TVResolution.SupportList[config.VideoMaximumHeight].W;
-            }
-            else
-            {
-                bool convert = true;
-
-                // ComputerTVResolution
-                DEVMODE vDevMode = new DEVMODE();
-                vDevMode.dmSize = (short)Marshal.SizeOf(vDevMode);
-                vDevMode.dmDriverExtra = 0;
-                for (int i = 0; Native.EnumDisplaySettings(null, i, ref vDevMode); i++)
-                {
-                    bool n = false;
-
-                    TVResolution r = new TVResolution(vDevMode.dmPelsWidth, vDevMode.dmPelsHeight);
-                    if (TVResolution.H16V9 == r.P && config.VideoMaximumHeight == r.H && r.Priority)
-                    {
-                        if (convert)
-                        {
-                            convert = false;
-                        }
-                        config.VideoMaximumWidth = r.W;
-
-                        n = true;
-                    }
-
-                    Shell.WriteLine("{0}x{1} Color:{2} Frequency:{3} AspectRatio[{4}]"
-                        , n ? Shell.NOTE_COLOR : Shell.DEFAULT_COLOR
-                        , true
-                        , vDevMode.dmPelsWidth
-                        , vDevMode.dmPelsHeight
-                        , 1L << vDevMode.dmBitsPerPel
-                        , vDevMode.dmDisplayFrequency
-                        , r.AspectRatio);
-                }
-
-                if (convert)
-                {
-                    config.VideoMaximumWidth = TVResolution.Width(config.VideoMaximumHeight, TVResolution.H16V9);
-                    Shell.Warning("未在XboxTVResolution与ComputerTVResolution中找到对应的分辨率，计算得出{0}x{1}"
-                        , config.VideoMaximumWidth, config.VideoMaximumHeight);
-                }
-            }
+            config.VideoMaximumWidth = TVResolution.Width(config.VideoMaximumHeight);
 
             Shell.WriteLine($"Connecting to {Config.CurrentMapping.IP}...");
             GamestreamSession session = ConnectToConsole(Config.CurrentMapping.IP, config);
@@ -306,10 +254,8 @@ namespace Xstream
         }
     }
 
-    /// <summary>
-    /// 关于电视分辨率和 Xbox One
-    /// https://support.xbox.com/zh-CN/help/hardware-network/display-sound/tv-resolutions
-    /// </summary>
+    // 关于电视分辨率和 Xbox One
+    // See https://support.xbox.com/zh-CN/help/hardware-network/display-sound/tv-resolutions
     public class TVResolution
     {
         public static readonly int H4V3 = Per(4, 3);
@@ -322,30 +268,29 @@ namespace Xstream
         public static TVResolution HDTV_1440p = new TVResolution(2560, 1440, H16V9);
         public static TVResolution UHDTV_4K = new TVResolution(3840, 2160, H16V9);
 
-        public static Dictionary<int, TVResolution> SupportList = new Dictionary<int, TVResolution>();
-
-        static Dictionary<long, TVResolution> SpecialList = new Dictionary<long, TVResolution>();
+        static Dictionary<int, TVResolution> SupportList = new Dictionary<int, TVResolution>();
+        static Dictionary<int, TVResolution> SpecialList = new Dictionary<int, TVResolution>();
 
         static TVResolution()
         {
-            SupportList.Add(EDTV_480P);
-            SupportList.Add(HDTV_720p);
-            SupportList.Add(HDTV_1080p);
-            SupportList.Add(HDTV_1440p);
-            SupportList.Add(UHDTV_4K);
+            SupportList.AH(EDTV_480P);
+            SupportList.AH(HDTV_720p);
+            SupportList.AH(HDTV_1080p);
+            SupportList.AH(HDTV_1440p);
+            SupportList.AH(UHDTV_4K);
 
-            SpecialList.Add(new TVResolution(480, 234, H16V9));
-            SpecialList.Add(new TVResolution(480, 272, H16V9));
-            SpecialList.Add(new TVResolution(848, 480, H16V9) { _scan = string.Empty });
-            SpecialList.Add(new TVResolution(854, 480, H16V9));
-            SpecialList.Add(new TVResolution(960, 544, H16V9));
-            SpecialList.Add(new TVResolution(1024, 600, H16V9));
-            SpecialList.Add(new TVResolution(1136, 640, H16V9) { _scan = string.Empty });
-            SpecialList.Add(new TVResolution(1138, 640, H16V9));
-            SpecialList.Add(new TVResolution(1334, 750, H16V9));
-            SpecialList.Add(new TVResolution(1360, 768, H16V9) { _scan = string.Empty });
-            SpecialList.Add(new TVResolution(1366, 768, H16V9));
-            SpecialList.Add(new TVResolution(1776, 1000, H16V9));
+            SpecialList.AP(new TVResolution(480, 234, H16V9));
+            SpecialList.AP(new TVResolution(480, 272, H16V9));
+            SpecialList.AP(new TVResolution(848, 480, H16V9));
+            SpecialList.AP(new TVResolution(854, 480, H16V9));
+            SpecialList.AP(new TVResolution(960, 544, H16V9));
+            SpecialList.AP(new TVResolution(1024, 600, H16V9));
+            SpecialList.AP(new TVResolution(1136, 640, H16V9) { _scan = string.Empty });
+            SpecialList.AP(new TVResolution(1138, 640, H16V9));
+            SpecialList.AP(new TVResolution(1334, 750, H16V9));
+            SpecialList.AP(new TVResolution(1360, 768, H16V9) { _scan = string.Empty });
+            SpecialList.AP(new TVResolution(1366, 768, H16V9));
+            SpecialList.AP(new TVResolution(1776, 1000, H16V9));
         }
 
         public static int Per(int horizon, int vertical) => horizon << 16 | vertical;
@@ -354,13 +299,45 @@ namespace Xstream
 
         public static int Vertical(int p) => p & 0xFFFF;
 
-        public static long LPer(int horizon, int vertical) => horizon << 32 | vertical;
-
-        public static int LHorizon(long p) => (int)(p >> 32);
-
-        public static int LVertical(long p) => (int)(p & 0xFFFFFFFF);
-
         public static int Width(int h, int p) => h / Vertical(p) * Horizon(p);
+
+        public static int Width(int h)
+        {
+            int w = 0;
+
+            if (SupportList.ContainsKey(h))
+            {
+                // XboxTVResolution
+                return SupportList[h].W;
+            }
+
+            // ComputerTVResolution
+            DEVMODE vDevMode = new DEVMODE();
+            vDevMode.dmSize = (ushort)Marshal.SizeOf(vDevMode);
+            vDevMode.dmDriverExtra = 0;
+            for (int i = 0; Native.EnumDisplaySettings(null, (uint)i, ref vDevMode); i++)
+            {
+                TVResolution r = new TVResolution(vDevMode.dmPelsWidth, vDevMode.dmPelsHeight);
+                if (H16V9 == r.P && h == r.H && r.Priority)
+                {
+                    w = r.W;
+                    Debug.Write("+");// 表示命中
+                }
+                else
+                {
+                    Debug.Write("-");
+                }
+
+                Debug.WriteLine("{0}x{1} Color:{2} Frequency:{3} AspectRatio[{4}]"
+                    , vDevMode.dmPelsWidth
+                    , vDevMode.dmPelsHeight
+                    , 1L << (int)vDevMode.dmBitsPerPel
+                    , vDevMode.dmDisplayFrequency
+                    , r.AspectRatio);
+            }
+
+            return w != 0 ? w : Width(h, H16V9);
+        }
 
         public static int Height(int w, int p) => w / Horizon(p) * Vertical(p);
 
@@ -374,14 +351,21 @@ namespace Xstream
         public int H { get; private set; }
         public int P { get; private set; }
         public string AspectRatio => $"{Horizon(P)}:{Vertical(P)}";
-        public bool Priority => _scan == null || _scan.EndsWith('p');
+        public bool Priority => _scan == null;
 
         string _scan;
+
+        TVResolution(int w, int h, int p)
+        {
+            W = w;
+            H = h;
+            P = p;
+        }
 
         public TVResolution(int w, int h)
             : this(w, h, 0)
         {
-            long k = LPer(w, h);
+            int k = Per(w, h);
             if (SpecialList.ContainsKey(k))
             {
                 P = SpecialList[k].P;
@@ -393,19 +377,14 @@ namespace Xstream
             }
         }
 
-        TVResolution(int w, int h, int p)
-        {
-            W = w;
-            H = h;
-            P = p;
-        }
+        public TVResolution(uint w, uint h) : this((int)w, (int)h) { }
     }
 
     static class Dictionary_Extensions
     {
-        public static void Add(this Dictionary<int, TVResolution> d, TVResolution r) => d.Add(r.H, r);
+        public static void AH(this Dictionary<int, TVResolution> d, TVResolution r) => d.Add(r.H, r);
 
-        public static void Add(this Dictionary<long, TVResolution> d, TVResolution r)
-            => d.Add(TVResolution.LPer(r.W, r.H), r);
+        public static void AP(this Dictionary<int, TVResolution> d, TVResolution r)
+            => d.Add(TVResolution.Per(r.W, r.H), r);
     }
 }

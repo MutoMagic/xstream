@@ -21,7 +21,7 @@ namespace Xstream
 
         public static Exception Abort(string extra, Exception e, params object[] args)
         {
-            e = new XStreamException(extra, e, args);
+            e = new XstreamException(extra, e, args);
             if (Trace.Listeners[0] is DefaultTraceListener)
             {
                 Error(e.Message);
@@ -104,10 +104,10 @@ namespace Xstream
                 + Environment.NewLine);
     }
 
-    public class XStreamException : Exception
+    public class XstreamException : Exception
     {
-        public XStreamException(string msg) : base(msg) { }
-        public XStreamException(string msg, Exception e, params object[] args)
+        public XstreamException(string msg) : base(msg) { }
+        public XstreamException(string msg, Exception e, params object[] args)
             : base(string.Format(msg, args), e) { }
     }
 }

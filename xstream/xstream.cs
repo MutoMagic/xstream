@@ -36,8 +36,6 @@ namespace Xstream
         {
             InitializeComponent();
 
-            InitModes();
-
             VideoDisplay display = _displays[GetWindowDisplayIndex()];
             Rectangle bounds = GetDisplayBounds(display);
 
@@ -468,202 +466,11 @@ namespace Xstream
             //}
         }
 
-        static bool GetDisplayMode(string deviceName, int index, ref DisplayMode mode)
-        {
-            DEVMODE data;
-            DEVMODE devmode = new DEVMODE();
-            IntPtr hdc;
+        
 
-            devmode.dmSize = (short)Marshal.SizeOf(devmode);
-            devmode.dmDriverExtra = 0;
-            if (!Native.EnumDisplaySettings(deviceName, index, ref devmode))
-            {
-                return false;
-            }
+        
 
-            data = devmode;
-            data.dmFields = Native.DM_BITSPERPEL
-                | Native.DM_PELSWIDTH
-                | Native.DM_PELSHEIGHT
-                | Native.DM_DISPLAYFREQUENCY
-                | Native.DM_DISPLAYFLAGS;
-
-            // Fill in the mode information
-            mode.format = Format.Unknown;
-            mode.w = devmode.dmPelsWidth;
-            mode.h = devmode.dmPelsHeight;
-            mode.refresh_rate = devmode.dmDisplayFrequency;
-            mode.DeviceMode = data;
-
-            if (index == Native.ENUM_CURRENT_SETTINGS
-                && (hdc = Native.CreateDC(deviceName, null, null, IntPtr.Zero)) != IntPtr.Zero)
-            {
-                BITMAPINFO bmi;
-                IntPtr hbm;
-
-                bmi = new BITMAPINFO();
-                bmi.bmiHeader.Init();
-
-                hbm = Native.CreateCompatibleBitmap(hdc, 1, 1);
-                Native.GetDIBits(hdc, hbm, 0, 1, null, ref bmi, DIB_Color_Mode.DIB_RGB_COLORS);
-                Native.GetDIBits(hdc, hbm, 0, 1, null, ref bmi, DIB_Color_Mode.DIB_RGB_COLORS);
-                Native.DeleteObject(hbm);
-                Native.DeleteDC(hdc);
-                if (bmi.bmiHeader.biCompression == BitmapCompressionMode.BI_BITFIELDS)
-                {
-                    switch (bmi.bmiColors[0])
-                    {
-                        case 0x00FF0000:
-                            mode.format = Format.X8R8G8B8;
-                            break;
-                        case 0x000000FF:
-                            mode.format = Format.X8B8G8R8;
-                            break;
-                        case 0xF800:
-                            mode.format = Format.R5G6B5;
-                            break;
-                        case 0x7C00:
-                            mode.format = Format.X1R5G5B5;
-                            break;
-                    }
-                }
-                else if (bmi.bmiHeader.biBitCount == 8)
-                {
-                    mode.format = Format.P8;// FIXME: It could be D3DFMT_UNKNOWN?
-                }
-                else if (bmi.bmiHeader.biBitCount == 4)
-                {
-                    mode.format = Format.Unknown;
-                }
-            }
-            else
-            {
-                // FIXME: Can we tell what this will be?
-                if ((devmode.dmFields & Native.DM_BITSPERPEL) == Native.DM_BITSPERPEL)
-                {
-                    switch (devmode.dmBitsPerPel)
-                    {
-                        case 32:
-                            mode.format = Format.X8R8G8B8;
-                            break;
-                        case 24:
-                            mode.format = Format.R8G8B8;
-                            break;
-                        case 16:
-                            mode.format = Format.R5G6B5;
-                            break;
-                        case 15:
-                            mode.format = Format.X1R5G5B5;
-                            break;
-                        case 8:
-                            mode.format = Format.P8;
-                            break;
-                        case 4:
-                            mode.format = Format.Unknown;
-                            break;
-                    }
-                }
-            }
-            return true;
-        }
-
-        int AddVideoDisplay(VideoDisplay display)
-        {
-            VideoDisplay[] displays;
-            int index;
-
-            displays = new VideoDisplay[_numDisplays + 1];
-            index = _numDisplays++;
-            displays[index] = display;
-
-            _displays?.CopyTo(displays, 0);
-            _displays = displays;
-
-            if (string.IsNullOrEmpty(display.name))
-            {
-                displays[index].name = index.ToString();
-            }
-
-            return index;
-        }
-
-        bool AddDisplay(string deviceName)
-        {
-            VideoDisplay display = new VideoDisplay();
-            DisplayMode mod = new DisplayMode();
-            DISPLAY_DEVICE device = new DISPLAY_DEVICE();
-
-            if (!GetDisplayMode(deviceName, Native.ENUM_CURRENT_SETTINGS, ref mod))
-            {
-                return false;
-            }
-
-            device.cb = Marshal.SizeOf(device);
-            if (Native.EnumDisplayDevices(deviceName, 0, ref device, 0))
-            {
-                display.name = device.DeviceString;
-            }
-            display.desktop_mode = mod;
-            display.current_mode = mod;
-            display.DeviceName = deviceName;
-            AddVideoDisplay(display);
-            return true;
-        }
-
-        void InitModes()
-        {
-            int pass, count;
-            uint i, j;
-            DISPLAY_DEVICE device;
-
-            device = new DISPLAY_DEVICE();
-            device.cb = Marshal.SizeOf(device);
-
-            // Get the primary display in the first pass
-            for (pass = 0; pass < 2; ++pass)
-            {
-                for (i = 0; ; ++i)
-                {
-                    string deviceName;
-
-                    if (!Native.EnumDisplayDevices(null, i, ref device, 0)) break;
-                    if ((device.StateFlags & DisplayDeviceStateFlags.AttachedToDesktop) == 0) continue;
-                    if (pass == 0)
-                    {
-                        if ((device.StateFlags & DisplayDeviceStateFlags.PrimaryDevice) == 0) continue;
-                    }
-                    else
-                    {
-                        if ((device.StateFlags & DisplayDeviceStateFlags.PrimaryDevice) != 0) continue;
-                    }
-                    deviceName = device.DeviceName;
-                    Debug.WriteLine("Device: {0}", deviceName);
-                    count = 0;
-                    for (j = 0; ; ++j)
-                    {
-                        if (!Native.EnumDisplayDevices(deviceName, j, ref device, 0)) break;
-                        if ((device.StateFlags & DisplayDeviceStateFlags.AttachedToDesktop) == 0) continue;
-                        if (pass == 0)
-                        {
-                            if ((device.StateFlags & DisplayDeviceStateFlags.PrimaryDevice) == 0) continue;
-                        }
-                        else
-                        {
-                            if ((device.StateFlags & DisplayDeviceStateFlags.PrimaryDevice) != 0) continue;
-                        }
-                        count += AddDisplay(device.DeviceName) ? 1 : 0;
-                    }
-                    if (count == 0)
-                    {
-                        AddDisplay(deviceName);
-                    }
-                }
-            }
-            if (_numDisplays == 0)
-            {
-                throw Shell.Abort("No displays available", null);
-            }
-        }
+        
 
         DisplayMode GetWindowDisplayMode()
         {
@@ -954,7 +761,7 @@ namespace Xstream
             int x, y;
             int w, h;
 
-            style = Native.GetWindowLongPtr(Handle, GWL.STYLE);
+            style = Native.GetWindowLongPtr86(Handle, Native.GWL_STYLE);
             style &= ~Native.STYLE_MASK;
             style |= GetWindowStyle();
 
@@ -981,11 +788,11 @@ namespace Xstream
                 y = _windowed.Y + rect.Top;
             }
 
-            Native.SetWindowLongPtr(new HandleRef(this, Handle), GWL.STYLE, style);
+            Native.SetWindowLongPtr86(new HandleRef(this, Handle), Native.GWL_STYLE, style);
             Native.SetWindowPos(Handle
-                , SpecialWindowHandles.HWND_NOTOPMOST
+                , Native.HWND_NOTOPMOST
                 , x, y, w, h
-                , SetWindowPosFlags.SWP_NOCOPYBITS);
+                , Native.SWP_NOCOPYBITS);
         }
 
         #endregion
@@ -1016,28 +823,6 @@ namespace Xstream
 
             SetWindowFullscreen(_displays[displayIndex], false);
         }
-    }
-
-    struct VideoDisplay
-    {
-        public string name;
-        public int max_display_modes;
-        public int num_display_modes;
-        public DisplayMode[] display_modes;
-        public DisplayMode desktop_mode;
-        public DisplayMode current_mode;
-
-        public string DeviceName;
-    }
-
-    struct DisplayMode
-    {
-        public Format format;// pixel format
-        public int w;// width
-        public int h;// height
-        public int refresh_rate;// refresh rate (or zero for unspecified)
-
-        public DEVMODE DeviceMode;
     }
 
     enum SDL_EventType : uint

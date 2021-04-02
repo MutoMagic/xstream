@@ -60,6 +60,7 @@ namespace Xstream
             _pparams.BackBufferHeight = _window.ClientSize.Height;
             if (Config.Fullscreen)
             {
+
             }
             else
             {
