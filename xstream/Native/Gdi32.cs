@@ -5,7 +5,7 @@ namespace Xstream
 {
     partial class Native
     {
-        #region GetDIBits
+        #region GetDIBits()
 
         public const uint DIB_RGB_COLORS = 0;
         public const uint DIB_PAL_COLORS = 1;

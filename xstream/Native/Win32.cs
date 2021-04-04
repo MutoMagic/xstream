@@ -1,7 +1,7 @@
 ﻿using SharpDX.Direct3D9;
 using System;
 using System.Diagnostics;
-using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Xstream
@@ -43,55 +43,41 @@ namespace Xstream
 
         #region CBool
 
-        public static T CBool<T>(bool val) where T : IConvertible => (T)Convert.ChangeType(val, typeof(T));
         public static bool CBool(sbyte val) => val != 0;
         public static bool CBool(byte val) => val != 0;
         public static bool CBool(short val) => val != 0;
         public static bool CBool(ushort val) => val != 0;
-        public static bool CBool(char val) => val != 0;
         public static bool CBool(int val) => val != 0;
         public static bool CBool(uint val) => val != 0U;
         public static bool CBool(long val) => val != 0L;
         public static bool CBool(ulong val) => val != 0UL;
         public static bool CBool(double val) => val != 0D;
         public static bool CBool(float val) => val != 0F;
+        public static bool CBool(char val) => val != 0;
         public static bool CBool(IntPtr val) => val != IntPtr.Zero;
+        public static unsafe bool CBool(void* val) => val != (void*)0;
         public static unsafe bool CBool(Enum val)
         {
-            Assembly mscorlib = Assembly.Load("mscorlib, Version=4.0.0.0");
-
-            Type classJitHelpers = mscorlib.GetType("System.Runtime.CompilerServices.JitHelpers");
-            MethodInfo methodGetPinningHelper = classJitHelpers.GetMethod("GetPinningHelper"
-                , BindingFlags.NonPublic | BindingFlags.Static);
-            object objectPinningHelper = methodGetPinningHelper.Invoke(null, new object[] { val });
-
-            Type classPinningHelper = mscorlib.GetType("System.Runtime.CompilerServices.PinningHelper");
-            FieldInfo m_data = classPinningHelper.GetField("m_data");
-            byte valUnderlying = (byte)m_data.GetValue(objectPinningHelper);
-
-            void* pVal = &valUnderlying;
-            switch (val.GetTypeCode())
+            fixed (void* pVal = &Unsafe.As<RawData>(val).data)
             {
-                case TypeCode.SByte:
-                    return CBool(*(sbyte*)pVal);
-                case TypeCode.Byte:
-                    return CBool(*(byte*)pVal);
-                case TypeCode.Int16:
-                    return CBool(*(short*)pVal);
-                case TypeCode.UInt16:
-                    return CBool(*(ushort*)pVal);
-                case TypeCode.Int32:
-                    return CBool(*(int*)pVal);
-                case TypeCode.UInt32:
-                    return CBool(*(uint*)pVal);
-                case TypeCode.Int64:
-                    return CBool(*(long*)pVal);
-                case TypeCode.UInt64:
-                    return CBool(*(ulong*)pVal);
-                default:
-                    throw new ArgumentException("Invalid primitive type");
+                return val.GetTypeCode() switch
+                {
+                    TypeCode.SByte => CBool(*(sbyte*)pVal),
+                    TypeCode.Byte => CBool(*(byte*)pVal),
+                    TypeCode.Int16 => CBool(*(short*)pVal),
+                    TypeCode.UInt16 => CBool(*(ushort*)pVal),
+                    TypeCode.Int32 => CBool(*(int*)pVal),
+                    TypeCode.UInt32 => CBool(*(uint*)pVal),
+                    TypeCode.Int64 => CBool(*(long*)pVal),
+                    TypeCode.UInt64 => CBool(*(ulong*)pVal),
+                    _ => throw new InvalidOperationException($"Invalid primitive type {val.GetTypeCode()}")
+                };
             }
         }
+
+        //public static T CBool<T>(bool val) where T : IConvertible => (T)Convert.ChangeType(val, typeof(T));
+        public static T CBool<T>(bool val) => Unsafe.As<bool, T>(ref val);
+        public static uint CBool(bool val) => Unsafe.As<bool, uint>(ref val);
 
         #endregion
 
@@ -283,7 +269,7 @@ namespace Xstream
                         {
                             if (CBool(device.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE)) continue;
                         }
-                        count += CBool<uint>(AddDisplay(device.DeviceName));
+                        count += CBool(AddDisplay(device.DeviceName));
                     }
                     if (count == 0)
                     {
@@ -298,6 +284,11 @@ namespace Xstream
         }
 
         #endregion
+    }
+
+    class RawData
+    {
+        public byte data;
     }
 
     public struct VideoDisplay
