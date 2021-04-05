@@ -1,13 +1,13 @@
-using SmartGlass;
-using SmartGlass.Common;
-using SmartGlass.Nano;
-using SmartGlass.Nano.Packets;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using SmartGlass;
+using SmartGlass.Common;
+using SmartGlass.Nano;
+using SmartGlass.Nano.Packets;
 using XboxWebApi.Authentication;
 using XboxWebApi.Authentication.Model;
 
@@ -29,7 +29,7 @@ namespace Xstream
         {
             if (string.IsNullOrEmpty(_tokenFilePath))
             {
-                throw Shell.Abort("The tokenFilePath IsNullOrEmpty!", null);
+                throw Shell.Log("The tokenFilePath IsNullOrEmpty!");
             }
 
             AuthenticationService auth;
@@ -40,7 +40,7 @@ namespace Xstream
             }
             catch (Exception e)
             {
-                throw Shell.Abort($"Failed to refresh XBL tokens, error: {e.Message}", e);
+                throw Shell.Log("Failed to refresh XBL tokens, error: {0}", e, e.Message);
             }
             _userHash = auth.XToken.UserInformation.Userhash;
             _xToken = auth.XToken.Jwt;
@@ -57,7 +57,7 @@ namespace Xstream
             }
             catch (Exception e)
             {
-                throw Shell.Abort($"Authentication failed, error: {e.Message}", e);
+                throw Shell.Log("Authentication failed, error: {0}", e, e.Message);
             }
 
             FileStream tokenOutputFile;
@@ -68,7 +68,7 @@ namespace Xstream
             }
             catch (Exception e)
             {
-                throw Shell.Abort("Failed to open token outputfile \'{0}\', error: {1}", e
+                throw Shell.Log("Failed to open token outputfile \'{0}\', error: {1}", e
                     , _tokenFilePath, e.Message);
             }
             _userHash = auth.XToken.UserInformation.Userhash;
@@ -92,15 +92,15 @@ namespace Xstream
             }
             catch (SmartGlassException e)
             {
-                throw Shell.Abort($"Failed to connect: {e.Message}", e);
+                throw Shell.Log("Failed to connect: {0}", e, e.Message);
             }
             catch (TimeoutException e)
             {
-                throw Shell.Abort($"Timeout while connecting: {e.Message}", e);
+                throw Shell.Log("Timeout while connecting: {0}", e, e.Message);
             }
             catch (Exception e)
             {
-                throw Shell.Abort(e.Message, e);
+                throw Shell.Log(e);
             }
         }
 
@@ -200,10 +200,10 @@ namespace Xstream
 
             config.VideoMaximumWidth = TVResolution.Width(config.VideoMaximumHeight);
 
-            Shell.WriteLine($"Connecting to {Config.CurrentMapping.IP}...");
+            Shell.WriteLine("Connecting to {0}...", Config.CurrentMapping.IP);
             GamestreamSession session = ConnectToConsole(Config.CurrentMapping.IP, config);
 
-            Shell.WriteLine($"Connecting to NANO // TCP: {session.TcpPort}, UDP: {session.UdpPort}");
+            Shell.WriteLine("Connecting to NANO // TCP: {0}, UDP: {1}", session.TcpPort, session.UdpPort);
             Nano = new NanoClient(Config.CurrentMapping.IP, session);
             try
             {
@@ -234,7 +234,7 @@ namespace Xstream
             }
             catch (Exception e)
             {
-                throw Shell.Abort($"Failed to init Nano, error: {e.Message}", e);
+                throw Shell.Log("Failed to init Nano, error: {e.Message}", e, e.Message);
             }
 
 #if !DEBUG
@@ -304,6 +304,7 @@ namespace Xstream
         public static int Width(int h)
         {
             int w = 0;
+            uint i;
 
             if (SupportList.ContainsKey(h))
             {
@@ -315,7 +316,7 @@ namespace Xstream
             DEVMODE vDevMode = new DEVMODE();
             vDevMode.dmSize = (ushort)Marshal.SizeOf(vDevMode);
             vDevMode.dmDriverExtra = 0;
-            for (int i = 0; Native.EnumDisplaySettings(null, (uint)i, ref vDevMode); i++)
+            for (i = 0; Native.EnumDisplaySettings(null, i, ref vDevMode); i++)
             {
                 TVResolution r = new TVResolution(vDevMode.dmPelsWidth, vDevMode.dmPelsHeight);
                 if (H16V9 == r.P && h == r.H && r.Priority)

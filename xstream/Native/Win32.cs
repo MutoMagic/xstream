@@ -1,8 +1,9 @@
-﻿using SharpDX.Direct3D9;
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
+using System.Windows.Forms;
 
 namespace Xstream
 {
@@ -31,15 +32,82 @@ namespace Xstream
         public const long STYLE_RESIZABLE = WS_THICKFRAME | WS_MAXIMIZEBOX;
         public const long STYLE_MASK = STYLE_FULLSCREEN | STYLE_BORDERLESS | STYLE_NORMAL | STYLE_RESIZABLE;
 
-        static uint _numDisplays;
-        static VideoDisplay[] _displays;
+        public const uint SDL_PIXELFORMAT_UNKNOWN = 0;
+        public static readonly uint SDL_PIXELFORMAT_INDEX1LSB
+            = SDL_Define_PixelFormat(SDL_PixelType.INDEX1, SDL_BitmapOrder.B4321, 0, 1, 0);
+        public static readonly uint SDL_PIXELFORMAT_INDEX1MSB
+            = SDL_Define_PixelFormat(SDL_PixelType.INDEX1, SDL_BitmapOrder.B1234, 0, 1, 0);
+        public static readonly uint SDL_PIXELFORMAT_INDEX4LSB
+            = SDL_Define_PixelFormat(SDL_PixelType.INDEX4, SDL_BitmapOrder.B4321, 0, 4, 0);
+        public static readonly uint SDL_PIXELFORMAT_INDEX4MSB
+            = SDL_Define_PixelFormat(SDL_PixelType.INDEX4, SDL_BitmapOrder.B1234, 0, 4, 0);
+        public static readonly uint SDL_PIXELFORMAT_INDEX8
+            = SDL_Define_PixelFormat(SDL_PixelType.INDEX8, 0, 0, 8, 1);
+        public static readonly uint SDL_PIXELFORMAT_RGB332
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED8, SDL_PackedOrder.XRGB, SDL_PackedLayout.L332, 8, 1);
+        public static readonly uint SDL_PIXELFORMAT_RGB444
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.XRGB, SDL_PackedLayout.L4444, 12, 2);
+        public static readonly uint SDL_PIXELFORMAT_RGB555
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.XRGB, SDL_PackedLayout.L1555, 15, 2);
+        public static readonly uint SDL_PIXELFORMAT_BGR555
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.XBGR, SDL_PackedLayout.L1555, 15, 2);
+        public static readonly uint SDL_PIXELFORMAT_ARGB4444
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.ARGB, SDL_PackedLayout.L4444, 16, 2);
+        public static readonly uint SDL_PIXELFORMAT_RGBA4444
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.RGBA, SDL_PackedLayout.L4444, 16, 2);
+        public static readonly uint SDL_PIXELFORMAT_ABGR4444
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.ABGR, SDL_PackedLayout.L4444, 16, 2);
+        public static readonly uint SDL_PIXELFORMAT_BGRA4444
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.BGRA, SDL_PackedLayout.L4444, 16, 2);
+        public static readonly uint SDL_PIXELFORMAT_ARGB1555
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.ARGB, SDL_PackedLayout.L1555, 16, 2);
+        public static readonly uint SDL_PIXELFORMAT_RGBA5551
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.RGBA, SDL_PackedLayout.L5551, 16, 2);
+        public static readonly uint SDL_PIXELFORMAT_ABGR1555
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.ABGR, SDL_PackedLayout.L1555, 16, 2);
+        public static readonly uint SDL_PIXELFORMAT_BGRA5551
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.BGRA, SDL_PackedLayout.L5551, 16, 2);
+        public static readonly uint SDL_PIXELFORMAT_RGB565
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.XRGB, SDL_PackedLayout.L565, 16, 2);
+        public static readonly uint SDL_PIXELFORMAT_BGR565
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.XBGR, SDL_PackedLayout.L565, 16, 2);
+        public static readonly uint SDL_PIXELFORMAT_RGB24
+            = SDL_Define_PixelFormat(SDL_PixelType.ARRAYU8, SDL_ArrayOrder.RGB, 0, 24, 3);
+        public static readonly uint SDL_PIXELFORMAT_BGR24
+            = SDL_Define_PixelFormat(SDL_PixelType.ARRAYU8, SDL_ArrayOrder.BGR, 0, 24, 3);
+        public static readonly uint SDL_PIXELFORMAT_RGB888
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED32, SDL_PackedOrder.XRGB, SDL_PackedLayout.L8888, 24, 4);
+        public static readonly uint SDL_PIXELFORMAT_RGBX8888
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED32, SDL_PackedOrder.RGBX, SDL_PackedLayout.L8888, 24, 4);
+        public static readonly uint SDL_PIXELFORMAT_BGR888
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED32, SDL_PackedOrder.XBGR, SDL_PackedLayout.L8888, 24, 4);
+        public static readonly uint SDL_PIXELFORMAT_BGRX8888
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED32, SDL_PackedOrder.BGRX, SDL_PackedLayout.L8888, 24, 4);
+        public static readonly uint SDL_PIXELFORMAT_ARGB8888
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED32, SDL_PackedOrder.ARGB, SDL_PackedLayout.L8888, 32, 4);
+        public static readonly uint SDL_PIXELFORMAT_RGBA8888
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED32, SDL_PackedOrder.RGBA, SDL_PackedLayout.L8888, 32, 4);
+        public static readonly uint SDL_PIXELFORMAT_ABGR8888
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED32, SDL_PackedOrder.ABGR, SDL_PackedLayout.L8888, 32, 4);
+        public static readonly uint SDL_PIXELFORMAT_BGRA8888
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED32, SDL_PackedOrder.BGRA, SDL_PackedLayout.L8888, 32, 4);
+        public static readonly uint SDL_PIXELFORMAT_ARGB2101010
+            = SDL_Define_PixelFormat(SDL_PixelType.PACKED32, SDL_PackedOrder.ARGB, SDL_PackedLayout.L2101010, 32, 4);
+        public static readonly uint SDL_PIXELFORMAT_YV12 = MakeFourCC('Y', 'V', '1', '2');// Y + V + U  (3 planes)
+        public static readonly uint SDL_PIXELFORMAT_IYUV = MakeFourCC('I', 'Y', 'U', 'V');// Y + U + V  (3 planes)
+        public static readonly uint SDL_PIXELFORMAT_YUY2 = MakeFourCC('Y', 'U', 'Y', '2');// Y0+U0+Y1+V0 (1 plane)
+        public static readonly uint SDL_PIXELFORMAT_UYVY = MakeFourCC('U', 'Y', 'V', 'Y');// U0+Y0+V0+Y1 (1 plane)
+        public static readonly uint SDL_PIXELFORMAT_YVYU = MakeFourCC('Y', 'V', 'Y', 'U');// Y0+V0+Y1+U0 (1 plane)
 
-        public static VideoDisplay PrimaryDisplay => _displays[0];
+        static SDL_VideoDevice _video;
 
         static Native()
         {
-            //InitModes();
+            InitModes();
         }
+
+        public static T GetValue<T>(Enum val) => Unsafe.As<byte, T>(ref Unsafe.As<RawData>(val).data);
+        public static uint GetValue(Enum val) => Unsafe.As<byte, uint>(ref Unsafe.As<RawData>(val).data);
 
         #region CBool
 
@@ -77,13 +145,13 @@ namespace Xstream
 
         //public static T CBool<T>(bool val) where T : IConvertible => (T)Convert.ChangeType(val, typeof(T));
         public static T CBool<T>(bool val) => Unsafe.As<bool, T>(ref val);
-        public static uint CBool(bool val) => Unsafe.As<bool, uint>(ref val);
+        public static byte CBool(bool val) => Unsafe.As<bool, byte>(ref val);
 
         #endregion
 
         #region windows modes
 
-        static unsafe bool GetDisplayMode(string deviceName, uint index, ref DisplayMode mode)
+        static unsafe bool GetDisplayMode(string deviceName, uint index, ref SDL_DisplayMode mode)
         {
             DEVMODE data;
             DEVMODE devmode = new DEVMODE();
@@ -104,7 +172,7 @@ namespace Xstream
                 | DM_DISPLAYFLAGS;
 
             // Fill in the mode information
-            mode.format = Format.Unknown;
+            mode.format = SDL_PIXELFORMAT_UNKNOWN;
             mode.w = (int)devmode.dmPelsWidth;
             mode.h = (int)devmode.dmPelsHeight;
             mode.refresh_rate = (int)devmode.dmDisplayFrequency;
@@ -131,27 +199,27 @@ namespace Xstream
                         switch (*(uint*)bmiColors)
                         {
                             case 0x00FF0000:
-                                mode.format = Format.X8R8G8B8;
+                                mode.format = SDL_PIXELFORMAT_RGB888;
                                 break;
                             case 0x000000FF:
-                                mode.format = Format.X8B8G8R8;
+                                mode.format = SDL_PIXELFORMAT_BGR888;
                                 break;
                             case 0xF800:
-                                mode.format = Format.R5G6B5;
+                                mode.format = SDL_PIXELFORMAT_RGB565;
                                 break;
                             case 0x7C00:
-                                mode.format = Format.X1R5G5B5;
+                                mode.format = SDL_PIXELFORMAT_RGB555;
                                 break;
                         }
                     }
                 }
                 else if (bmi.bmiHeader.biBitCount == 8)
                 {
-                    mode.format = Format.P8;// FIXME: It could be D3DFMT_UNKNOWN?
+                    mode.format = SDL_PIXELFORMAT_INDEX8;
                 }
                 else if (bmi.bmiHeader.biBitCount == 4)
                 {
-                    mode.format = Format.Unknown;
+                    mode.format = SDL_PIXELFORMAT_INDEX4LSB;
                 }
             }
             else
@@ -162,22 +230,22 @@ namespace Xstream
                     switch (devmode.dmBitsPerPel)
                     {
                         case 32:
-                            mode.format = Format.X8R8G8B8;
+                            mode.format = SDL_PIXELFORMAT_RGB888;
                             break;
                         case 24:
-                            mode.format = Format.R8G8B8;
+                            mode.format = SDL_PIXELFORMAT_RGB24;
                             break;
                         case 16:
-                            mode.format = Format.R5G6B5;
+                            mode.format = SDL_PIXELFORMAT_RGB565;
                             break;
                         case 15:
-                            mode.format = Format.X1R5G5B5;
+                            mode.format = SDL_PIXELFORMAT_RGB555;
                             break;
                         case 8:
-                            mode.format = Format.P8;
+                            mode.format = SDL_PIXELFORMAT_INDEX8;
                             break;
                         case 4:
-                            mode.format = Format.Unknown;
+                            mode.format = SDL_PIXELFORMAT_INDEX4LSB;
                             break;
                     }
                 }
@@ -185,32 +253,13 @@ namespace Xstream
             return true;
         }
 
-        static int AddVideoDisplay(VideoDisplay display)
-        {
-            VideoDisplay[] displays;
-            int index;
-
-            displays = new VideoDisplay[_numDisplays + 1];
-            index = _numDisplays++;
-            displays[index] = display;
-
-            _displays?.CopyTo(displays, 0);
-            _displays = displays;
-
-            if (string.IsNullOrEmpty(display.name))
-            {
-                displays[index].name = index.ToString();
-            }
-
-            return index;
-        }
-
         static bool AddDisplay(string deviceName)
         {
-            VideoDisplay display = new VideoDisplay();
-            DisplayMode mod = new DisplayMode();
+            SDL_VideoDisplay display = new SDL_VideoDisplay();
+            SDL_DisplayMode mod = new SDL_DisplayMode();
             DISPLAY_DEVICE device = new DISPLAY_DEVICE();
 
+            Debug.WriteLine("Display: {0}", deviceName);
             if (!GetDisplayMode(deviceName, ENUM_CURRENT_SETTINGS, ref mod))
             {
                 return false;
@@ -277,35 +326,156 @@ namespace Xstream
                     }
                 }
             }
-            if (_numDisplays == 0)
+            if (_video.num_displays == 0)
             {
                 throw new NotSupportedException("No displays available");
             }
         }
 
         #endregion
+
+        static int AddVideoDisplay(SDL_VideoDisplay display)
+        {
+            SDL_VideoDisplay[] displays;
+            int index;
+
+            displays = new SDL_VideoDisplay[_video.num_displays + 1];
+
+            index = _video.num_displays++;
+            displays[index] = display;
+            displays[index].device = _video;
+
+            _video.displays?.CopyTo(displays, 0);
+            _video.displays = displays;
+
+            if (string.IsNullOrEmpty(display.name))
+            {
+                displays[index].name = index.ToString();
+            }
+
+            return index;
+        }
+
+        #region enumerated pixel format definitions
+
+        static uint MakeFourCC(char ch0, char ch1, char ch2, char ch3)
+        {
+            byte[] chs = Encoding.ASCII.GetBytes(new char[] { ch0, ch1, ch2, ch3 });
+            return chs[0] | (uint)chs[1] << 8 | (uint)chs[2] << 16 | (uint)chs[3] << 24;
+        }
+
+        static uint SDL_Define_PixelFormat(Enum type, Enum order, Enum layout, uint bits, uint bytes)
+            => SDL_Define_PixelFormat(GetValue(type), GetValue(order), GetValue(layout), bits, bytes);
+
+        static uint SDL_Define_PixelFormat(Enum type, Enum order, uint layout, uint bits, uint bytes)
+            => SDL_Define_PixelFormat(GetValue(type), GetValue(order), layout, bits, bytes);
+
+        static uint SDL_Define_PixelFormat(Enum type, uint order, uint layout, uint bits, uint bytes)
+            => SDL_Define_PixelFormat(GetValue(type), order, layout, bits, bytes);
+
+        static uint SDL_Define_PixelFormat(uint type, uint order, uint layout, uint bits, uint bytes)
+            => 1 << 28 | type << 24 | order << 20 | layout << 16 | bits << 8 | bytes << 0;
+
+        enum SDL_PixelType : uint
+        {
+            UNKNOWN,
+            INDEX1,
+            INDEX4,
+            INDEX8,
+            PACKED8,
+            PACKED16,
+            PACKED32,
+            ARRAYU8,
+            ARRAYU16,
+            ARRAYU32,
+            ARRAYF16,
+            ARRAYF32
+        }
+
+        enum SDL_BitmapOrder : uint
+        {
+            NONE,
+            B4321,
+            B1234
+        }
+
+        enum SDL_PackedOrder : uint
+        {
+            NONE,
+            XRGB,
+            RGBX,
+            ARGB,
+            RGBA,
+            XBGR,
+            BGRX,
+            ABGR,
+            BGRA
+        }
+
+        enum SDL_ArrayOrder : uint
+        {
+            NONE,
+            RGB,
+            RGBA,
+            ARGB,
+            BGR,
+            BGRA,
+            ABGR
+        }
+
+        enum SDL_PackedLayout : uint
+        {
+            NONE,
+            L332,
+            L4444,
+            L1555,
+            L5551,
+            L565,
+            L8888,
+            L2101010,
+            L1010102
+        }
+
+        #endregion
+
+        class RawData
+        {
+            public byte data;
+        }
     }
 
-    class RawData
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SDL_VideoDevice
     {
-        public byte data;
+        public int num_displays;
+        public SDL_VideoDisplay[] displays;
+        public Form[] windows;
+
+        public SDL_VideoDisplay PrimaryDisplay => displays[0];
     }
 
-    public struct VideoDisplay
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SDL_VideoDisplay
     {
         public string name;
         public int max_display_modes;
         public int num_display_modes;
-        public DisplayMode[] display_modes;
-        public DisplayMode desktop_mode;
-        public DisplayMode current_mode;
+        public SDL_DisplayMode[] display_modes;
+        public SDL_DisplayMode desktop_mode;
+        public SDL_DisplayMode current_mode;
 
+        public Form fullscreen_window;
+
+        public SDL_VideoDevice device;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
         public string DeviceName;
     }
 
-    public struct DisplayMode
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SDL_DisplayMode
     {
-        public Format format;// pixel format
+        public uint format;// pixel format
         public int w;// width
         public int h;// height
         public int refresh_rate;// refresh rate (or zero for unspecified)

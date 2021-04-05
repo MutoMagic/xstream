@@ -494,7 +494,7 @@ namespace Xstream
                 , fullscreen_mode
                 , ref fullscreen_mode).HasValue)
             {
-                throw Shell.Abort("Couldn't find display mode match", null);
+                throw Shell.Log("Couldn't find display mode match");
             }
 
             return fullscreen_mode;
@@ -509,7 +509,7 @@ namespace Xstream
                 , IntPtr.Zero);
             if (status != DISP_CHANGE.Successful)
             {
-                throw Shell.Abort($"ChangeDisplaySettingsEx() failed: {status}", null);
+                throw Shell.Log($"ChangeDisplaySettingsEx() failed: {status}");
             }
             Native.EnumDisplaySettings(display.DeviceName, Native.ENUM_CURRENT_SETTINGS, ref mode.DeviceMode);
         }
@@ -544,7 +544,7 @@ namespace Xstream
                 // Get a good video mode, the closest one possible
                 if (!GetClosestDisplayModeForDisplay(ref display, display_mode, ref display_mode).HasValue)
                 {
-                    throw Shell.Abort("No video mode large enough for {0}x{1}", null
+                    throw Shell.Log("No video mode large enough for {0}x{1}"
                         , display_mode.w, display_mode.h);
                 }
             }

@@ -13,14 +13,14 @@ namespace Xstream
         const uint FORMAT_MESSAGE_FROM_SYSTEM = 0x00001000;
         const uint FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200;
 
-        public static void Delay(int ms) => Delay((uint)ms);
-
-        public static void Delay(uint ms)
+        public static void Sleep(int ms)
         {
+            uint dwMilliseconds = (uint)ms;
+
             uint max_delay = 0xFFFFFFFF / 1000U;
-            if (ms > max_delay)
-                ms = max_delay;
-            Sleep(ms);// Thread.Sleep(millisecondsTimeout < 0) 会报错
+            if (dwMilliseconds > max_delay)
+                dwMilliseconds = max_delay;
+            Sleep(dwMilliseconds);// Thread.Sleep(millisecondsTimeout < 0) 会报错
         }
 
         public static string GetLastError()

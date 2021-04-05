@@ -19,9 +19,8 @@ namespace Xstream
             DEFAULT_COLOR = Console.ForegroundColor;
         }
 
-        public static Exception Abort(string extra, Exception e, params object[] args)
+        public static Exception Log(Exception e)
         {
-            e = new XstreamException(extra, e, args);
             if (Trace.Listeners[0] is DefaultTraceListener)
             {
                 Error(e.Message);
@@ -36,6 +35,12 @@ namespace Xstream
             }
             return e;
         }
+
+        public static Exception Log(string extra, params object[] args)
+            => Log(new XstreamException(extra, args));
+
+        public static Exception Log(string extra, Exception innerException, params object[] args)
+            => Log(new XstreamException(extra, innerException, args));
 
         public static void PressAnyKeyToContinue()
         {
@@ -106,8 +111,8 @@ namespace Xstream
 
     public class XstreamException : Exception
     {
-        public XstreamException(string msg) : base(msg) { }
-        public XstreamException(string msg, Exception e, params object[] args)
-            : base(string.Format(msg, args), e) { }
+        public XstreamException(string msg, params object[] args) : base(string.Format(msg, args)) { }
+        public XstreamException(string msg, Exception innerException, params object[] args)
+            : base(string.Format(msg, args), innerException) { }
     }
 }
