@@ -699,15 +699,14 @@ namespace Xstream
         #endregion
 
         public static long SetWindowLongPtr86(HandleRef hWnd, int nIndex, long dwNewLong)
-        {
-            return IntPtr.Size == 8 ? SetWindowLongPtr(hWnd, nIndex, (IntPtr)dwNewLong).ToInt64()
-                : SetWindowLong(hWnd, nIndex, (int)dwNewLong);
-        }
+            => IntPtr.Size == 8 ?
+            SetWindowLongPtr(hWnd, nIndex, (IntPtr)dwNewLong).ToInt64() :
+            SetWindowLong(hWnd, nIndex, (int)dwNewLong);
 
-        public static long GetWindowLongPtr86(IntPtr hWnd, int nIndex)
-        {
-            return IntPtr.Size == 8 ? GetWindowLongPtr(hWnd, nIndex).ToInt64() : GetWindowLong(hWnd, nIndex);
-        }
+        public static long GetWindowLongPtr86(HandleRef hWnd, int nIndex)
+            => IntPtr.Size == 8 ?
+            GetWindowLongPtr(hWnd, nIndex).ToInt64() :
+            GetWindowLong(hWnd, nIndex);
 
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -717,7 +716,7 @@ namespace Xstream
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool PeekMessage(
             out MSG lpMsg,
-            IntPtr hWnd,
+            IntPtr hWnd,// NULL
             uint wMsgFilterMin,
             uint wMsgFilterMax,
             uint wRemoveMsg);
@@ -742,18 +741,18 @@ namespace Xstream
         public static extern int ChangeDisplaySettingsEx(
             string lpszDeviceName,
             ref DEVMODE lpDevMode,
-            IntPtr hwnd,
+            IntPtr hwnd,// NULL
             uint dwflags,
             IntPtr lParam);
 
         [DllImport("user32.dll")]
-        static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+        static extern int GetWindowLong(HandleRef hWnd, int nIndex);
 
         [DllImport("user32.dll")]
-        static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
+        static extern IntPtr GetWindowLongPtr(HandleRef hWnd, int nIndex);
 
         [DllImport("user32.dll")]
-        public static extern IntPtr GetMenu(IntPtr hWnd);
+        public static extern IntPtr GetMenu(HandleRef hWnd);
 
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -767,7 +766,7 @@ namespace Xstream
 
         [DllImport("user32.dll", SetLastError = true)]
         public static extern bool SetWindowPos(
-            IntPtr hWnd,
+            HandleRef hWnd,
             IntPtr hWndInsertAfter,
             int X,
             int Y,
@@ -887,10 +886,10 @@ namespace Xstream
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT
     {
-        public int Left;// 指定矩形左上角的x坐标
-        public int Top;// 指定矩形左上角的y坐标
-        public int Right;// 指定矩形右下角的x坐标
-        public int Bottom;// 指定矩形右下角的y坐标
+        public int Left;        // 指定矩形左上角的x坐标
+        public int Top;         // 指定矩形左上角的y坐标
+        public int Right;       // 指定矩形右下角的x坐标
+        public int Bottom;      // 指定矩形右下角的y坐标
 
         /*
         public static readonly RECT Empty;

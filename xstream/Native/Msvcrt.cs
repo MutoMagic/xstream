@@ -5,7 +5,7 @@ namespace Xstream
 {
     partial class Native
     {
-        public static int CompareMemory<T1, T2>(T1 obj1, T2 obj2, int count)
+        public static int CompareMemory<T1, T2>(T1 obj1, T2 obj2, int count) where T1 : struct where T2 : struct
         {
             /*
              * UIntPtr与IntPtr在指针的实现上都一样，似乎没有什么区别。

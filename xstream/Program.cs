@@ -306,9 +306,9 @@ namespace Xstream
             int w = 0;
             uint i;
 
+            // XboxTVResolution
             if (SupportList.ContainsKey(h))
             {
-                // XboxTVResolution
                 return SupportList[h].W;
             }
 

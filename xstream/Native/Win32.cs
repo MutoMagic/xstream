@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
+using System.Reflection;
+using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Windows.Forms;
 
 namespace Xstream
 {
@@ -32,82 +34,14 @@ namespace Xstream
         public const long STYLE_RESIZABLE = WS_THICKFRAME | WS_MAXIMIZEBOX;
         public const long STYLE_MASK = STYLE_FULLSCREEN | STYLE_BORDERLESS | STYLE_NORMAL | STYLE_RESIZABLE;
 
-        public const uint SDL_PIXELFORMAT_UNKNOWN = 0;
-        public static readonly uint SDL_PIXELFORMAT_INDEX1LSB
-            = SDL_Define_PixelFormat(SDL_PixelType.INDEX1, SDL_BitmapOrder.B4321, 0, 1, 0);
-        public static readonly uint SDL_PIXELFORMAT_INDEX1MSB
-            = SDL_Define_PixelFormat(SDL_PixelType.INDEX1, SDL_BitmapOrder.B1234, 0, 1, 0);
-        public static readonly uint SDL_PIXELFORMAT_INDEX4LSB
-            = SDL_Define_PixelFormat(SDL_PixelType.INDEX4, SDL_BitmapOrder.B4321, 0, 4, 0);
-        public static readonly uint SDL_PIXELFORMAT_INDEX4MSB
-            = SDL_Define_PixelFormat(SDL_PixelType.INDEX4, SDL_BitmapOrder.B1234, 0, 4, 0);
-        public static readonly uint SDL_PIXELFORMAT_INDEX8
-            = SDL_Define_PixelFormat(SDL_PixelType.INDEX8, 0, 0, 8, 1);
-        public static readonly uint SDL_PIXELFORMAT_RGB332
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED8, SDL_PackedOrder.XRGB, SDL_PackedLayout.L332, 8, 1);
-        public static readonly uint SDL_PIXELFORMAT_RGB444
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.XRGB, SDL_PackedLayout.L4444, 12, 2);
-        public static readonly uint SDL_PIXELFORMAT_RGB555
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.XRGB, SDL_PackedLayout.L1555, 15, 2);
-        public static readonly uint SDL_PIXELFORMAT_BGR555
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.XBGR, SDL_PackedLayout.L1555, 15, 2);
-        public static readonly uint SDL_PIXELFORMAT_ARGB4444
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.ARGB, SDL_PackedLayout.L4444, 16, 2);
-        public static readonly uint SDL_PIXELFORMAT_RGBA4444
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.RGBA, SDL_PackedLayout.L4444, 16, 2);
-        public static readonly uint SDL_PIXELFORMAT_ABGR4444
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.ABGR, SDL_PackedLayout.L4444, 16, 2);
-        public static readonly uint SDL_PIXELFORMAT_BGRA4444
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.BGRA, SDL_PackedLayout.L4444, 16, 2);
-        public static readonly uint SDL_PIXELFORMAT_ARGB1555
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.ARGB, SDL_PackedLayout.L1555, 16, 2);
-        public static readonly uint SDL_PIXELFORMAT_RGBA5551
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.RGBA, SDL_PackedLayout.L5551, 16, 2);
-        public static readonly uint SDL_PIXELFORMAT_ABGR1555
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.ABGR, SDL_PackedLayout.L1555, 16, 2);
-        public static readonly uint SDL_PIXELFORMAT_BGRA5551
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.BGRA, SDL_PackedLayout.L5551, 16, 2);
-        public static readonly uint SDL_PIXELFORMAT_RGB565
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.XRGB, SDL_PackedLayout.L565, 16, 2);
-        public static readonly uint SDL_PIXELFORMAT_BGR565
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED16, SDL_PackedOrder.XBGR, SDL_PackedLayout.L565, 16, 2);
-        public static readonly uint SDL_PIXELFORMAT_RGB24
-            = SDL_Define_PixelFormat(SDL_PixelType.ARRAYU8, SDL_ArrayOrder.RGB, 0, 24, 3);
-        public static readonly uint SDL_PIXELFORMAT_BGR24
-            = SDL_Define_PixelFormat(SDL_PixelType.ARRAYU8, SDL_ArrayOrder.BGR, 0, 24, 3);
-        public static readonly uint SDL_PIXELFORMAT_RGB888
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED32, SDL_PackedOrder.XRGB, SDL_PackedLayout.L8888, 24, 4);
-        public static readonly uint SDL_PIXELFORMAT_RGBX8888
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED32, SDL_PackedOrder.RGBX, SDL_PackedLayout.L8888, 24, 4);
-        public static readonly uint SDL_PIXELFORMAT_BGR888
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED32, SDL_PackedOrder.XBGR, SDL_PackedLayout.L8888, 24, 4);
-        public static readonly uint SDL_PIXELFORMAT_BGRX8888
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED32, SDL_PackedOrder.BGRX, SDL_PackedLayout.L8888, 24, 4);
-        public static readonly uint SDL_PIXELFORMAT_ARGB8888
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED32, SDL_PackedOrder.ARGB, SDL_PackedLayout.L8888, 32, 4);
-        public static readonly uint SDL_PIXELFORMAT_RGBA8888
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED32, SDL_PackedOrder.RGBA, SDL_PackedLayout.L8888, 32, 4);
-        public static readonly uint SDL_PIXELFORMAT_ABGR8888
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED32, SDL_PackedOrder.ABGR, SDL_PackedLayout.L8888, 32, 4);
-        public static readonly uint SDL_PIXELFORMAT_BGRA8888
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED32, SDL_PackedOrder.BGRA, SDL_PackedLayout.L8888, 32, 4);
-        public static readonly uint SDL_PIXELFORMAT_ARGB2101010
-            = SDL_Define_PixelFormat(SDL_PixelType.PACKED32, SDL_PackedOrder.ARGB, SDL_PackedLayout.L2101010, 32, 4);
-        public static readonly uint SDL_PIXELFORMAT_YV12 = MakeFourCC('Y', 'V', '1', '2');// Y + V + U  (3 planes)
-        public static readonly uint SDL_PIXELFORMAT_IYUV = MakeFourCC('I', 'Y', 'U', 'V');// Y + U + V  (3 planes)
-        public static readonly uint SDL_PIXELFORMAT_YUY2 = MakeFourCC('Y', 'U', 'Y', '2');// Y0+U0+Y1+V0 (1 plane)
-        public static readonly uint SDL_PIXELFORMAT_UYVY = MakeFourCC('U', 'Y', 'V', 'Y');// U0+Y0+V0+Y1 (1 plane)
-        public static readonly uint SDL_PIXELFORMAT_YVYU = MakeFourCC('Y', 'V', 'Y', 'U');// Y0+V0+Y1+U0 (1 plane)
-
-        static SDL_VideoDevice _video;
+        delegate T DoClone<T>(T src);
+        static Dictionary<Type, Delegate> _cachedILShallow = new Dictionary<Type, Delegate>();
+        static Dictionary<Type, Delegate> _cachedILDeep = new Dictionary<Type, Delegate>();
 
         static Native()
         {
-            InitModes();
+            WIN_InitModes(_this);
         }
-
-        public static T GetValue<T>(Enum val) => Unsafe.As<byte, T>(ref Unsafe.As<RawData>(val).data);
-        public static uint GetValue(Enum val) => Unsafe.As<byte, uint>(ref Unsafe.As<RawData>(val).data);
 
         #region CBool
 
@@ -149,11 +83,395 @@ namespace Xstream
 
         #endregion
 
+        public static ref T GetValue<T>(object val) => ref Unsafe.As<byte, T>(ref Unsafe.As<RawData>(val).data);
+        public static T GetValue<T>(Enum val) => Unsafe.As<byte, T>(ref Unsafe.As<RawData>(val).data);
+        public static uint GetValue(Enum val) => Unsafe.As<byte, uint>(ref Unsafe.As<RawData>(val).data);
+
+        public static T[] Resize<T>(T[] array, int newSize)
+        {
+            T[] newArray = new T[newSize];
+            if (newSize < array.Length)
+            {
+                for (int i = newSize; i-- > 0;)
+                {
+                    newArray[i] = array[i];
+                }
+            }
+            else
+            {
+                array?.CopyTo(newArray, 0);// 浅拷贝
+            }
+            return newArray;
+        }
+
+        // 数组组合
+        public static T[][] Combine<T>(T[][] array)
+        {
+            int arrLength = array.Length;
+            int[] lengths = new int[arrLength];
+            int[] product = new int[arrLength];
+
+            int itemLength = 1;
+            for (int i = 0; i < arrLength; i++)
+            {
+                Debug.Assert(array[i].Rank == 1);
+
+                lengths[i] = array[i].Length;
+                product[i] = itemLength;    // i > 0 ? lengths[i - 1] * product[i - 1] : 1
+                itemLength *= lengths[i];   // 锯齿数组可以长度不一
+            }
+
+            T[][] items = new T[itemLength][];
+            for (int i = 0; i < itemLength; i++)
+            {
+                items[i] = new T[arrLength];
+                for (int j = 0; j < arrLength; j++)
+                {
+                    // 比较规范的写法 (int)(Math.Floor((double)i / product[j]))
+                    items[i][j] = array[j][i / product[j] % lengths[j]];
+                }
+            }
+            return items;
+        }
+
+        // 区间集[from,to)
+        public static int[] IntervalClass(int from, int to)
+        {
+            int[] set = new int[to - from];
+            int index = 0;
+
+            for (int i = from; i < to; i++)
+            {
+                set[index++] = i;
+            }
+
+            Debug.Assert(++index == set.Length);
+            return set;
+        }
+
+        public static Array Clone(Array array, bool deep = false)
+        {
+            if (array.Rank > 1)
+            {
+                throw new NotSupportedException("Jagged arrays should be used instead of multidimensional " +
+                    "when you use it to analyse your projects.");
+            }
+
+            Array newArray = Array.CreateInstance(array.GetType().GetElementType(), array.Length);
+            for (int i = array.Length; i-- > 0;)
+            {
+                object element = array.GetValue(i);
+                object newElement = Clone(element, deep);
+                newArray.SetValue(newElement, i);
+            }
+            return newArray;
+        }
+
+        public static bool IsSimpleType(Type t)
+        {
+            /*
+             * 以下所有判断均为true！！！蜜汁逻辑，相当致命
+             * 
+             * enum CBool : int { False, True }
+             * typeof(CBool).IsEnum == true
+             * typeof(CBool).BaseType == System.Enum
+             * typeof(Enum).IsEnum == false
+             * 
+             * typeof(byte).IsValueType == true
+             * typeof(byte).BaseType == System.ValueType
+             * typeof(Enum).BaseType == System.ValueType
+             * typeof(Enum).IsValueType == false
+             * typeof(ValueType).IsValueType == false
+             */
+            return t.IsValueType // every primitive type has IsValueType set to true,
+                                 // so checking for IsPrimitive is not need.
+                || t == typeof(string)
+                || typeof(ValueType).IsAssignableFrom(t)
+                || typeof(Delegate).IsAssignableFrom(t);
+        }
+
+        public static bool IsArrayType(Type t)
+        {
+            /*
+             * 数组也相当蜜汁，你甚至可以 Array variable = new int[length];
+             * 
+             * typeof(int[]).IsArray == true
+             * typeof(int[]).BaseType == System.Array
+             * typeof(Array).IsArray == false
+             */
+            return t.IsArray || typeof(Array).IsAssignableFrom(t);
+        }
+
+        public static T Clone<T>(T obj, bool deep = false)
+        {
+            Dictionary<Type, Delegate> cachedIL = deep ? _cachedILDeep : _cachedILShallow;
+            if (!cachedIL.TryGetValue(typeof(T), out Delegate exec))
+            {
+                ConstructorInfo constructor = obj.GetType().GetConstructor(new Type[] { });
+                if (constructor == null)
+                {
+                    throw new InvalidOperationException("Requires no-argument constructor");
+                }
+
+                // Create ILGenerator
+                DynamicMethod clone = new DynamicMethod("DoClone", typeof(T), new Type[] { typeof(T) }, true);
+                ILGenerator generator = clone.GetILGenerator();
+                LocalBuilder newobj = generator.DeclareLocal(typeof(T));
+
+                generator.Emit(OpCodes.Newobj, constructor);
+                //generator.Emit(OpCodes.Stloc, newobj);
+                generator.Emit(OpCodes.Stloc_0);// 节省空间，至于效率不明
+                foreach (FieldInfo field in obj.GetType().GetFields(
+                    BindingFlags.Instance |
+                    BindingFlags.Public |
+                    BindingFlags.NonPublic))
+                {
+                    if (deep && !IsSimpleType(field.FieldType))
+                    {
+                        LocalBuilder value = generator.DeclareLocal(field.FieldType);
+                        generator.Emit(OpCodes.Ldarg_0);
+                        generator.Emit(OpCodes.Ldfld, field);
+                        generator.Emit(OpCodes.Stloc, value);
+                        Clone(generator, field, value, newobj);
+                        continue;
+                    }
+
+                    // Load the new object on the eval stack...     (currently 1 item on eval stack)
+                    generator.Emit(OpCodes.Ldloc_0);
+                    // Load initial object (parameter)              (currently 2 items on eval stack)
+                    generator.Emit(OpCodes.Ldarg_0);
+                    // Replace value by field value                 (still currently 2 items on eval stack)
+                    generator.Emit(OpCodes.Ldfld, field);
+                    // Store the value of the top on the eval stack into the object
+                    // underneath that value on the value stack.    (0 items on eval stack)
+                    generator.Emit(OpCodes.Stfld, field);
+                }
+                // Load new constructed obj on eval stack           --> 1 item on stack
+                generator.Emit(OpCodes.Ldloc_0);
+                // Return constructed object.                       --> 0 items on stack
+                generator.Emit(OpCodes.Ret);
+
+                exec = clone.CreateDelegate(typeof(DoClone<T>));
+                cachedIL.Add(typeof(T), exec);
+            }
+            return ((DoClone<T>)exec)(obj);
+        }
+
+        static void Clone(ILGenerator generator, FieldInfo field, LocalBuilder value, LocalBuilder newobj)
+        {
+            Label pass = generator.DefineLabel();
+            if (field.FieldType.GetCustomAttribute<StructInterfaceAttribute>() != null)
+            {
+                generator.Emit(OpCodes.Ldloc, value);
+                generator.Emit(OpCodes.Brfalse, pass);// fieldValue从堆栈中弹出
+
+                generator.Emit(OpCodes.Ldloc, newobj);
+                generator.Emit(OpCodes.Ldloc, value);
+                generator.Emit(OpCodes.Unbox, field.FieldType);// 对null拆箱会引发NullReferenceException
+                generator.Emit(OpCodes.Stfld, field);
+
+                generator.MarkLabel(pass);// 直接跳过，使用缺省值
+            }
+            else if (IsArrayType(field.FieldType))
+            {
+                MethodInfo clone = typeof(Native).GetMethod("Clone", new Type[] { typeof(Array), typeof(bool) });
+                Debug.Assert(clone != null);
+
+                generator.Emit(OpCodes.Ldloc, value);
+                generator.Emit(OpCodes.Brfalse, pass);
+
+                generator.Emit(OpCodes.Ldloc, newobj);
+                generator.Emit(OpCodes.Ldloc, value);
+                generator.Emit(OpCodes.Ldc_I4_1);// true
+                generator.Emit(OpCodes.Call, clone);
+                generator.Emit(OpCodes.Stfld, field);
+
+                generator.MarkLabel(pass);
+            }
+            else if (field.FieldType.GetInterface("IPrototype`1") != null)
+            {
+                MethodInfo deepCopy = field.FieldType.GetMethod("DeepCopy");
+                Debug.Assert(deepCopy != null);
+
+                generator.Emit(OpCodes.Ldloc, value);
+                generator.Emit(OpCodes.Brfalse, pass);
+
+                generator.Emit(OpCodes.Ldloc, newobj);
+                generator.Emit(OpCodes.Ldloc, value);
+                generator.Emit(OpCodes.Callvirt, deepCopy);
+                generator.Emit(OpCodes.Stfld, field);
+
+                generator.MarkLabel(pass);
+            }
+            else if (field.FieldType.IsClass && !field.FieldType.IsAbstract)
+            {
+                Type T = null;
+                foreach (MethodInfo method in typeof(Program).GetMethods())
+                {
+                    Type[] args = method.GetGenericArguments();
+                    if ("Clone".Equals(method.Name)
+                        && method.IsGenericMethod
+                        && args.Length == 1
+                        && "T".Equals(args[0].Name))
+                    {
+                        T = args[0];
+                        break;
+                    }
+                }
+                MethodInfo clone = typeof(Program)
+                    .GetMethod("Clone", new Type[] { T, typeof(bool) })
+                    .MakeGenericMethod(field.FieldType);
+                Debug.Assert(clone.IsGenericMethod);
+
+                generator.Emit(OpCodes.Ldloc, value);
+                generator.Emit(OpCodes.Brfalse, pass);
+
+                generator.Emit(OpCodes.Ldloc, newobj);
+                generator.Emit(OpCodes.Ldloc, value);
+                generator.Emit(OpCodes.Ldc_I4_1);
+                generator.Emit(OpCodes.Call, clone);
+                generator.Emit(OpCodes.Stfld, field);
+
+                generator.MarkLabel(pass);
+            }
+            else
+            {
+                throw new NotSupportedException("Unable to control object content");
+            }
+        }
+
+        static unsafe bool SDL_EnclosePoints(Point* points, int count, Rectangle* clip, Rectangle* result)
+        {
+            int minx = 0;
+            int miny = 0;
+            int maxx = 0;
+            int maxy = 0;
+            int x, y, i;
+
+            if (!CBool(points))
+            {
+                // TODO: error message
+                return false;
+            }
+
+            if (count < 1)
+            {
+                // TODO: error message
+                return false;
+            }
+
+            if (CBool(clip))
+            {
+                bool added = false;
+                int clip_minx = clip->X;
+                int clip_miny = clip->Y;
+                int clip_maxx = clip->X + clip->Width - 1;
+                int clip_maxy = clip->Y + clip->Height - 1;
+
+                // Special case for empty rectangle
+                if (clip->IsEmpty)
+                {
+                    return false;
+                }
+
+                for (i = 0; i < count; ++i)
+                {
+                    x = points[i].X;
+                    y = points[i].Y;
+
+                    if (x < clip_minx || x > clip_maxx ||
+                        y < clip_miny || y > clip_maxy)
+                    {
+                        continue;
+                    }
+
+                    if (!added)
+                    {
+                        // Special case: if no result was requested, we are done
+                        if (result == null)
+                        {
+                            return true;
+                        }
+
+                        // First point added
+                        minx = maxx = x;
+                        miny = maxy = y;
+                        added = true;
+                        continue;
+                    }
+                    if (x < minx)
+                    {
+                        minx = x;
+                    }
+                    else if (x > maxx)
+                    {
+                        maxx = x;
+                    }
+                    if (y < miny)
+                    {
+                        miny = y;
+                    }
+                    else if (y > maxy)
+                    {
+                        maxy = y;
+                    }
+                }
+                if (!added)
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                // Special case: if no result was requested, we are done
+                if (result == null)
+                {
+                    return true;
+                }
+
+                // No clipping, always add the first point
+                minx = maxx = points[0].X;
+                miny = maxy = points[0].Y;
+
+                for (i = 1; i < count; ++i)
+                {
+                    x = points[i].X;
+                    y = points[i].Y;
+
+                    if (x < minx)
+                    {
+                        minx = x;
+                    }
+                    else if (x > maxx)
+                    {
+                        maxx = x;
+                    }
+                    if (y < miny)
+                    {
+                        miny = y;
+                    }
+                    else if (y > maxy)
+                    {
+                        maxy = y;
+                    }
+                }
+            }
+
+            if (result != null)
+            {
+                result->X = minx;
+                result->Y = miny;
+                result->Width = (maxx - minx) + 1;
+                result->Height = (maxy - miny) + 1;
+            }
+            return true;
+        }
+
         #region windows modes
 
-        static unsafe bool GetDisplayMode(string deviceName, uint index, ref SDL_DisplayMode mode)
+        static unsafe bool WIN_GetDisplayMode(string deviceName, uint index, ref SDL_DisplayMode mode)
         {
-            DEVMODE data;
+            WIN_DisplayModeData data;
             DEVMODE devmode = new DEVMODE();
             IntPtr hdc;
 
@@ -164,19 +482,21 @@ namespace Xstream
                 return false;
             }
 
-            data = devmode;
-            data.dmFields = DM_BITSPERPEL
-                | DM_PELSWIDTH
-                | DM_PELSHEIGHT
-                | DM_DISPLAYFREQUENCY
-                | DM_DISPLAYFLAGS;
+            data = new WIN_DisplayModeData();
+            data.DeviceMode = devmode;
+            data.DeviceMode.dmFields =
+                DM_BITSPERPEL |
+                DM_PELSWIDTH |
+                DM_PELSHEIGHT |
+                DM_DISPLAYFREQUENCY |
+                DM_DISPLAYFLAGS;
 
             // Fill in the mode information
             mode.format = SDL_PIXELFORMAT_UNKNOWN;
             mode.w = (int)devmode.dmPelsWidth;
             mode.h = (int)devmode.dmPelsHeight;
             mode.refresh_rate = (int)devmode.dmDisplayFrequency;
-            mode.DeviceMode = data;
+            mode.driverdata = data;
 
             if (index == ENUM_CURRENT_SETTINGS
                 && (hdc = CreateDC(deviceName, null, null, IntPtr.Zero)) != IntPtr.Zero)
@@ -253,31 +573,35 @@ namespace Xstream
             return true;
         }
 
-        static bool AddDisplay(string deviceName)
+        static bool WIN_AddDisplay(string deviceName)
         {
             SDL_VideoDisplay display = new SDL_VideoDisplay();
+            WIN_DisplayData displaydata;
             SDL_DisplayMode mod = new SDL_DisplayMode();
             DISPLAY_DEVICE device = new DISPLAY_DEVICE();
 
             Debug.WriteLine("Display: {0}", deviceName);
-            if (!GetDisplayMode(deviceName, ENUM_CURRENT_SETTINGS, ref mod))
+            if (!WIN_GetDisplayMode(deviceName, ENUM_CURRENT_SETTINGS, mod))
             {
                 return false;
             }
 
+            displaydata = new WIN_DisplayData();
+            displaydata.DeviceName = deviceName;// 设备名称，极可能是监视器设备（显示器），也可能是适配器设备（显卡）
+
             device.cb = (uint)Marshal.SizeOf(device);
             if (EnumDisplayDevices(deviceName, 0, ref device, 0))
             {
-                display.name = device.DeviceString;
+                display.name = device.DeviceString;// 设备上下文，只可能是监视器设备
             }
-            display.desktop_mode = mod;
+            display.desktop_mode = mod.DeepCopy();
             display.current_mode = mod;
-            display.DeviceName = deviceName;
-            AddVideoDisplay(display);
+            display.driverdata = displaydata;
+            SDL_AddVideoDisplay(display);
             return true;
         }
 
-        static void InitModes()
+        static void WIN_InitModes(SDL_VideoDevice _this)
         {
             int pass;
             uint i, j, count;
@@ -318,122 +642,94 @@ namespace Xstream
                         {
                             if (CBool(device.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE)) continue;
                         }
-                        count += CBool(AddDisplay(device.DeviceName));
+                        count += CBool(WIN_AddDisplay(device.DeviceName));
                     }
                     if (count == 0)
                     {
-                        AddDisplay(deviceName);
+                        WIN_AddDisplay(deviceName);
                     }
                 }
             }
-            if (_video.num_displays == 0)
+            if (_this.num_displays == 0)
             {
                 throw new NotSupportedException("No displays available");
             }
         }
 
-        #endregion
-
-        static int AddVideoDisplay(SDL_VideoDisplay display)
+        static Rectangle WIN_GetDisplayBounds(SDL_VideoDisplay display)
         {
-            SDL_VideoDisplay[] displays;
-            int index;
+            ref WIN_DisplayModeData data = ref GetValue<WIN_DisplayModeData>(display.current_mode.driverdata);
 
-            displays = new SDL_VideoDisplay[_video.num_displays + 1];
+            return new Rectangle(
+                data.DeviceMode.DUMMYUNIONNAME.dmPosition.X,
+                data.DeviceMode.DUMMYUNIONNAME.dmPosition.Y,
+                (int)data.DeviceMode.dmPelsWidth,
+                (int)data.DeviceMode.dmPelsHeight);
+        }
 
-            index = _video.num_displays++;
-            displays[index] = display;
-            displays[index].device = _video;
+        static void WIN_GetDisplayModes(SDL_VideoDisplay display)
+        {
+            ref WIN_DisplayData data = ref GetValue<WIN_DisplayData>(display.driverdata);
+            uint i;
+            SDL_DisplayMode mode = new SDL_DisplayMode();
 
-            _video.displays?.CopyTo(displays, 0);
-            _video.displays = displays;
-
-            if (string.IsNullOrEmpty(display.name))
+            for (i = 0; ; ++i)
             {
-                displays[index].name = index.ToString();
+                if (!WIN_GetDisplayMode(data.DeviceName, i, mode))
+                {
+                    break;
+                }
+
+                if (SDL_IsPixelFormat_Indexed(mode.format))
+                {
+                    // We don't support palettized modes now
+                    continue;
+                }
+
+                if (mode.format != SDL_PIXELFORMAT_UNKNOWN)
+                {
+                    SDL_AddDisplayMode(display, mode);
+                }
             }
 
-            return index;
+            //if (display.display_modes == null)
+            //{
+            //    display.display_modes = new SDL_DisplayMode[display.max_display_modes];
+            //}
         }
 
-        #region enumerated pixel format definitions
-
-        static uint MakeFourCC(char ch0, char ch1, char ch2, char ch3)
+        static void WIN_SetDisplayMode(SDL_VideoDisplay display, SDL_DisplayMode mode)
         {
-            byte[] chs = Encoding.ASCII.GetBytes(new char[] { ch0, ch1, ch2, ch3 });
-            return chs[0] | (uint)chs[1] << 8 | (uint)chs[2] << 16 | (uint)chs[3] << 24;
-        }
+            ref WIN_DisplayData displaydata = ref GetValue<WIN_DisplayData>(display.driverdata);
+            ref WIN_DisplayModeData data = ref GetValue<WIN_DisplayModeData>(mode.driverdata);
+            int status;
 
-        static uint SDL_Define_PixelFormat(Enum type, Enum order, Enum layout, uint bits, uint bytes)
-            => SDL_Define_PixelFormat(GetValue(type), GetValue(order), GetValue(layout), bits, bytes);
-
-        static uint SDL_Define_PixelFormat(Enum type, Enum order, uint layout, uint bits, uint bytes)
-            => SDL_Define_PixelFormat(GetValue(type), GetValue(order), layout, bits, bytes);
-
-        static uint SDL_Define_PixelFormat(Enum type, uint order, uint layout, uint bits, uint bytes)
-            => SDL_Define_PixelFormat(GetValue(type), order, layout, bits, bytes);
-
-        static uint SDL_Define_PixelFormat(uint type, uint order, uint layout, uint bits, uint bytes)
-            => 1 << 28 | type << 24 | order << 20 | layout << 16 | bits << 8 | bytes << 0;
-
-        enum SDL_PixelType : uint
-        {
-            UNKNOWN,
-            INDEX1,
-            INDEX4,
-            INDEX8,
-            PACKED8,
-            PACKED16,
-            PACKED32,
-            ARRAYU8,
-            ARRAYU16,
-            ARRAYU32,
-            ARRAYF16,
-            ARRAYF32
-        }
-
-        enum SDL_BitmapOrder : uint
-        {
-            NONE,
-            B4321,
-            B1234
-        }
-
-        enum SDL_PackedOrder : uint
-        {
-            NONE,
-            XRGB,
-            RGBX,
-            ARGB,
-            RGBA,
-            XBGR,
-            BGRX,
-            ABGR,
-            BGRA
-        }
-
-        enum SDL_ArrayOrder : uint
-        {
-            NONE,
-            RGB,
-            RGBA,
-            ARGB,
-            BGR,
-            BGRA,
-            ABGR
-        }
-
-        enum SDL_PackedLayout : uint
-        {
-            NONE,
-            L332,
-            L4444,
-            L1555,
-            L5551,
-            L565,
-            L8888,
-            L2101010,
-            L1010102
+            status = ChangeDisplaySettingsEx(displaydata.DeviceName
+                , ref data.DeviceMode
+                , IntPtr.Zero
+                , CDS_FULLSCREEN
+                , IntPtr.Zero);
+            if (status != DISP_CHANGE_SUCCESSFUL)
+            {
+                string reason = "Unknown reason";
+                switch (status)
+                {
+                    case DISP_CHANGE_BADFLAGS:
+                        reason = "DISP_CHANGE_BADFLAGS";
+                        break;
+                    case DISP_CHANGE_BADMODE:
+                        reason = "DISP_CHANGE_BADMODE";
+                        break;
+                    case DISP_CHANGE_BADPARAM:
+                        reason = "DISP_CHANGE_BADPARAM";
+                        break;
+                    case DISP_CHANGE_FAILED:
+                        reason = "DISP_CHANGE_FAILED";
+                        break;
+                }
+                throw new InvalidOperationException($"ChangeDisplaySettingsEx() failed: {reason}");
+            }
+            EnumDisplaySettings(displaydata.DeviceName, ENUM_CURRENT_SETTINGS, ref data.DeviceMode);
         }
 
         #endregion
@@ -444,42 +740,31 @@ namespace Xstream
         }
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    public struct SDL_VideoDevice
-    {
-        public int num_displays;
-        public SDL_VideoDisplay[] displays;
-        public Form[] windows;
+    [AttributeUsage(AttributeTargets.Interface)]
+    public class StructInterfaceAttribute : Attribute { }
 
-        public SDL_VideoDisplay PrimaryDisplay => displays[0];
+    public interface IPrototype<T>
+    {
+        T DeepCopy();       // 深层复制
+        T ShallowCopy();    // 浅表复制
+    }
+
+    public abstract class Prototype<T> : IPrototype<T> where T : class
+    {
+        public virtual T DeepCopy() => Native.Clone(Unsafe.As<T>(this), true);
+        public virtual T ShallowCopy() => (T)MemberwiseClone();
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct SDL_VideoDisplay
+    public struct WIN_DisplayData : SDL_DisplayData
     {
-        public string name;
-        public int max_display_modes;
-        public int num_display_modes;
-        public SDL_DisplayMode[] display_modes;
-        public SDL_DisplayMode desktop_mode;
-        public SDL_DisplayMode current_mode;
-
-        public Form fullscreen_window;
-
-        public SDL_VideoDevice device;
-
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
         public string DeviceName;
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct SDL_DisplayMode
+    public struct WIN_DisplayModeData : SDL_DisplayModeData
     {
-        public uint format;// pixel format
-        public int w;// width
-        public int h;// height
-        public int refresh_rate;// refresh rate (or zero for unspecified)
-
         public DEVMODE DeviceMode;
     }
 }
