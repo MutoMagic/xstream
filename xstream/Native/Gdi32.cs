@@ -61,7 +61,7 @@ namespace Xstream
         public uint biClrUsed;
         public uint biClrImportant;
 
-        public void Init() => biSize = (uint)Marshal.SizeOf(this);
+        public void Init() => biSize = Native.SizeOf(this);
     }
 
     [StructLayout(LayoutKind.Sequential)]

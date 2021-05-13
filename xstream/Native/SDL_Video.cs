@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
 
@@ -91,16 +89,16 @@ namespace Xstream
         public const uint SDL_WINDOW_FULLSCREEN_DESKTOP = SDL_WINDOW_FULLSCREEN | 0x00001000;
         public const uint SDL_WINDOW_FOREIGN = 0x00000800;          // window not created by SDL
 
-        static SDL_VideoDevice _this;
+        static SDL_VideoDevice _video;
 
         static unsafe bool Check_Window_Magic(SDL_Window window, out Exception retval)
         {
-            if (_this == null)
+            if (_video == null)
             {
                 retval = new InvalidOperationException("Video subsystem has not been initialized");
                 return true;
             }
-            fixed (void* magic = &_this.window_magic)
+            fixed (void* magic = &_video.window_magic)
             {
                 if (window == null || window.magic != magic)
                 {
@@ -113,17 +111,19 @@ namespace Xstream
             return false;
         }
 
+        #region AddDisplay
+
         static int SDL_AddVideoDisplay(SDL_VideoDisplay display)
         {
             SDL_VideoDisplay[] displays;
             int index;
 
-            displays = Resize(_this.displays, _this.num_displays + 1);
+            displays = Resize(_video.displays, _video.num_displays + 1);
 
-            index = _this.num_displays++;
+            index = _video.num_displays++;
             displays[index] = display;
-            displays[index].device = _this;
-            _this.displays = displays;
+            displays[index].device = _video;
+            _video.displays = displays;
 
             if (display.name == null)
             {
@@ -158,6 +158,27 @@ namespace Xstream
             return 0;
         }
 
+        static int CompareMemory(SDL_DisplayMode a, SDL_DisplayMode b)
+        {
+            if (a.format != b.format)
+            {
+                return (int)(a.format - b.format);
+            }
+            if (a.w != b.w)
+            {
+                return a.w - b.w;
+            }
+            if (a.h != b.h)
+            {
+                return a.h - b.h;
+            }
+            if (a.refresh_rate != b.refresh_rate)
+            {
+                return a.refresh_rate - b.refresh_rate;
+            }
+            return _video.CompareMemory(a.driverdata, b.driverdata);
+        }
+
         static bool SDL_AddDisplayMode(SDL_VideoDisplay display, SDL_DisplayMode mode)
         {
             SDL_DisplayMode[] modes;
@@ -168,7 +189,7 @@ namespace Xstream
             nmodes = display.num_display_modes;
             for (i = nmodes; CBool(i--);)
             {
-                if (CompareMemory(mode, modes[i], Marshal.SizeOf(mode)) == 0)
+                if (CompareMemory(mode, modes[i]) == 0)
                 {
                     return false;
                 }
@@ -191,11 +212,13 @@ namespace Xstream
             return true;
         }
 
+        #endregion
+
         static int SDL_GetNumDisplayModesForDisplay(SDL_VideoDisplay display)
         {
-            if (CBool(display.num_display_modes) && _this.GetDisplayModes != null)
+            if (CBool(display.num_display_modes) && _video.GetDisplayModes != null)
             {
-                _this.GetDisplayModes(display);
+                _video.GetDisplayModes(display);
                 Array.Sort(display.display_modes, 0, display.num_display_modes
                     , Comparer<SDL_DisplayMode>.Create(CompareModes));
             }
@@ -221,7 +244,7 @@ namespace Xstream
             int displayIndex = SDL_GetWindowDisplayIndex(window);
             if (displayIndex >= 0)
             {
-                return ref _this.displays[displayIndex];
+                return ref _video.displays[displayIndex];
             }
             else
             {
@@ -409,14 +432,12 @@ namespace Xstream
             SDL_PixelType(format) == GetValue(SDL_PixelTypes.INDEX1) ||
             SDL_PixelType(format) == GetValue(SDL_PixelTypes.INDEX4) ||
             SDL_PixelType(format) == GetValue(SDL_PixelTypes.INDEX8));
-
         static bool SDL_IsPixelFormat_Alpha(uint format)
             => !SDL_IsPixelFormat_FourCC(format) && (
             SDL_PixelOrder(format) == GetValue(SDL_PackedOrder.ARGB) ||
             SDL_PixelOrder(format) == GetValue(SDL_PackedOrder.RGBA) ||
             SDL_PixelOrder(format) == GetValue(SDL_PackedOrder.ABGR) ||
             SDL_PixelOrder(format) == GetValue(SDL_PackedOrder.BGRA));
-
         static bool SDL_IsPixelFormat_FourCC(uint format) => CBool(format) && SDL_PixelFlag(format) != 1;
 
         static uint MakeFourCC(char ch0, char ch1, char ch2, char ch3)
@@ -427,13 +448,10 @@ namespace Xstream
 
         static uint SDL_Define_PixelFormat(Enum type, Enum order, Enum layout, uint bits, uint bytes)
             => SDL_Define_PixelFormat(GetValue(type), GetValue(order), GetValue(layout), bits, bytes);
-
         static uint SDL_Define_PixelFormat(Enum type, Enum order, uint layout, uint bits, uint bytes)
             => SDL_Define_PixelFormat(GetValue(type), GetValue(order), layout, bits, bytes);
-
         static uint SDL_Define_PixelFormat(Enum type, uint order, uint layout, uint bits, uint bytes)
             => SDL_Define_PixelFormat(GetValue(type), order, layout, bits, bytes);
-
         static uint SDL_Define_PixelFormat(uint type, uint order, uint layout, uint bits, uint bytes)
             => 1 << 28 | type << 24 | order << 20 | layout << 16 | bits << 8 | bytes << 0;
 
@@ -500,6 +518,7 @@ namespace Xstream
         #endregion
     }
 
+    public delegate int CompareMemory(SDL_DisplayModeData m1, SDL_DisplayModeData m2);
     public delegate void VideoInit(SDL_VideoDevice _this);
     public delegate void GetDisplayModes(SDL_VideoDisplay display);
 
@@ -518,6 +537,7 @@ namespace Xstream
 
     public class SDL_VideoDevice
     {
+        public CompareMemory CompareMemory;
         public VideoInit VideoInit;
         public GetDisplayModes GetDisplayModes;
 

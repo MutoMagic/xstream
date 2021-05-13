@@ -34,14 +34,13 @@ namespace Xstream
         public const long STYLE_RESIZABLE = WS_THICKFRAME | WS_MAXIMIZEBOX;
         public const long STYLE_MASK = STYLE_FULLSCREEN | STYLE_BORDERLESS | STYLE_NORMAL | STYLE_RESIZABLE;
 
-        delegate T DoClone<T>(T src);
         static Dictionary<Type, Delegate> _cachedILShallow = new Dictionary<Type, Delegate>();
         static Dictionary<Type, Delegate> _cachedILDeep = new Dictionary<Type, Delegate>();
 
-        static Native()
-        {
-            WIN_InitModes(_this);
-        }
+        public static uint SizeOf(object structure) => (uint)Marshal.SizeOf(structure);
+        public static uint SizeOf(Type t) => (uint)Marshal.SizeOf(t);
+        public static uint SizeOf<T>() => (uint)Marshal.SizeOf<T>();
+        public static uint SizeOf<T>(T structure) => (uint)Marshal.SizeOf(structure);
 
         #region CBool
 
@@ -99,7 +98,7 @@ namespace Xstream
             }
             else
             {
-                array?.CopyTo(newArray, 0);// 浅拷贝
+                array.CopyTo(newArray, 0);// 浅拷贝
             }
             return newArray;
         }
@@ -148,6 +147,8 @@ namespace Xstream
             Debug.Assert(++index == set.Length);
             return set;
         }
+
+        #region Clone
 
         public static Array Clone(Array array, bool deep = false)
         {
@@ -207,7 +208,7 @@ namespace Xstream
             Dictionary<Type, Delegate> cachedIL = deep ? _cachedILDeep : _cachedILShallow;
             if (!cachedIL.TryGetValue(typeof(T), out Delegate exec))
             {
-                ConstructorInfo constructor = obj.GetType().GetConstructor(new Type[] { });
+                ConstructorInfo constructor = obj.GetType().GetConstructor(Type.EmptyTypes);
                 if (constructor == null)
                 {
                     throw new InvalidOperationException("Requires no-argument constructor");
@@ -260,6 +261,7 @@ namespace Xstream
         static void Clone(ILGenerator generator, FieldInfo field, LocalBuilder value, LocalBuilder newobj)
         {
             Label pass = generator.DefineLabel();
+            MethodInfo clone;
             if (field.FieldType.GetCustomAttribute<StructInterfaceAttribute>() != null)
             {
                 generator.Emit(OpCodes.Ldloc, value);
@@ -274,7 +276,7 @@ namespace Xstream
             }
             else if (IsArrayType(field.FieldType))
             {
-                MethodInfo clone = typeof(Native).GetMethod("Clone", new Type[] { typeof(Array), typeof(bool) });
+                clone = typeof(Native).GetMethod("Clone", new Type[] { typeof(Array), typeof(bool) });
                 Debug.Assert(clone != null);
 
                 generator.Emit(OpCodes.Ldloc, value);
@@ -290,15 +292,15 @@ namespace Xstream
             }
             else if (field.FieldType.GetInterface("IPrototype`1") != null)
             {
-                MethodInfo deepCopy = field.FieldType.GetMethod("DeepCopy");
-                Debug.Assert(deepCopy != null);
+                clone = field.FieldType.GetMethod("DeepCopy");
+                Debug.Assert(clone != null);
 
                 generator.Emit(OpCodes.Ldloc, value);
                 generator.Emit(OpCodes.Brfalse, pass);
 
                 generator.Emit(OpCodes.Ldloc, newobj);
                 generator.Emit(OpCodes.Ldloc, value);
-                generator.Emit(OpCodes.Callvirt, deepCopy);
+                generator.Emit(OpCodes.Callvirt, clone);
                 generator.Emit(OpCodes.Stfld, field);
 
                 generator.MarkLabel(pass);
@@ -310,7 +312,7 @@ namespace Xstream
                 {
                     Type[] args = method.GetGenericArguments();
                     if ("Clone".Equals(method.Name)
-                        && method.IsGenericMethod
+                        && method.IsGenericMethodDefinition
                         && args.Length == 1
                         && "T".Equals(args[0].Name))
                     {
@@ -318,7 +320,8 @@ namespace Xstream
                         break;
                     }
                 }
-                MethodInfo clone = typeof(Program)
+                Debug.Assert(T != null);
+                clone = typeof(Program)
                     .GetMethod("Clone", new Type[] { T, typeof(bool) })
                     .MakeGenericMethod(field.FieldType);
                 Debug.Assert(clone.IsGenericMethod);
@@ -339,6 +342,8 @@ namespace Xstream
                 throw new NotSupportedException("Unable to control object content");
             }
         }
+
+        #endregion
 
         static unsafe bool SDL_EnclosePoints(Point* points, int count, Rectangle* clip, Rectangle* result)
         {
@@ -469,7 +474,7 @@ namespace Xstream
 
         #region windows modes
 
-        static unsafe bool WIN_GetDisplayMode(string deviceName, uint index, ref SDL_DisplayMode mode)
+        static unsafe bool WIN_GetDisplayMode(string deviceName, uint index, SDL_DisplayMode mode)
         {
             WIN_DisplayModeData data;
             DEVMODE devmode = new DEVMODE();
@@ -587,15 +592,15 @@ namespace Xstream
             }
 
             displaydata = new WIN_DisplayData();
-            displaydata.DeviceName = deviceName;// 设备名称，极可能是监视器设备（显示器），也可能是适配器设备（显卡）
+            displaydata.DeviceName = deviceName;
 
-            device.cb = (uint)Marshal.SizeOf(device);
+            device.cb = SizeOf(device);
             if (EnumDisplayDevices(deviceName, 0, ref device, 0))
             {
-                display.name = device.DeviceString;// 设备上下文，只可能是监视器设备
+                display.name = device.DeviceString;// 监视器上下文
             }
-            display.desktop_mode = mod.DeepCopy();
-            display.current_mode = mod;
+            display.desktop_mode = mod;
+            display.current_mode = mod.DeepCopy();
             display.driverdata = displaydata;
             SDL_AddVideoDisplay(display);
             return true;
@@ -608,7 +613,7 @@ namespace Xstream
             DISPLAY_DEVICE device;
 
             device = new DISPLAY_DEVICE();
-            device.cb = (uint)Marshal.SizeOf(device);
+            device.cb = SizeOf(device);
 
             // Get the primary display in the first pass
             for (pass = 0; pass < 2; ++pass)
@@ -627,7 +632,7 @@ namespace Xstream
                     {
                         if (CBool(device.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE)) continue;
                     }
-                    deviceName = device.DeviceName;
+                    deviceName = device.DeviceName;// 适配器名称
                     Debug.WriteLine("Device: {0}", deviceName);
                     count = 0;
                     for (j = 0; ; ++j)
@@ -642,11 +647,11 @@ namespace Xstream
                         {
                             if (CBool(device.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE)) continue;
                         }
-                        count += CBool(WIN_AddDisplay(device.DeviceName));
+                        count += CBool(WIN_AddDisplay(device.DeviceName));// 监视器设备（显示器）
                     }
                     if (count == 0)
                     {
-                        WIN_AddDisplay(deviceName);
+                        WIN_AddDisplay(deviceName);// 适配器设备（显卡）
                     }
                 }
             }
@@ -734,11 +739,20 @@ namespace Xstream
 
         #endregion
 
+        static int WIN_CompareMemory(SDL_DisplayModeData m1, SDL_DisplayModeData m2)
+        {
+            WIN_DisplayModeData d1 = (WIN_DisplayModeData)m1;
+            WIN_DisplayModeData d2 = (WIN_DisplayModeData)m2;
+            return CompareMemory(d1, d2, Marshal.SizeOf(d1));
+        }
+
         class RawData
         {
             public byte data;
         }
     }
+
+    public delegate T DoClone<T>(T src);
 
     [AttributeUsage(AttributeTargets.Interface)]
     public class StructInterfaceAttribute : Attribute { }
