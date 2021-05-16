@@ -71,7 +71,7 @@ namespace Xstream
                     TypeCode.UInt32 => CBool(*(uint*)pVal),
                     TypeCode.Int64 => CBool(*(long*)pVal),
                     TypeCode.UInt64 => CBool(*(ulong*)pVal),
-                    _ => throw new InvalidOperationException($"Invalid primitive type {val.GetTypeCode()}")
+                    _ => throw new NativeException("Invalid primitive type {0}", val.GetTypeCode())
                 };
             }
         }
@@ -154,8 +154,9 @@ namespace Xstream
         {
             if (array.Rank > 1)
             {
-                throw new NotSupportedException("Jagged arrays should be used instead of multidimensional " +
-                    "when you use it to analyse your projects.");
+                throw new NativeException("{0} {1}"
+                    , "Jagged arrays should be used instead of multidimensional"
+                    , "when you use it to analyse your projects.");
             }
 
             Array newArray = Array.CreateInstance(array.GetType().GetElementType(), array.Length);
@@ -211,7 +212,7 @@ namespace Xstream
                 ConstructorInfo constructor = obj.GetType().GetConstructor(Type.EmptyTypes);
                 if (constructor == null)
                 {
-                    throw new InvalidOperationException("Requires no-argument constructor");
+                    throw new NativeException("Requires no-argument constructor");
                 }
 
                 // Create ILGenerator
@@ -339,7 +340,7 @@ namespace Xstream
             }
             else
             {
-                throw new NotSupportedException("Unable to control object content");
+                throw new NativeException("Unable to control object content");
             }
         }
 
@@ -657,7 +658,7 @@ namespace Xstream
             }
             if (_this.num_displays == 0)
             {
-                throw new NotSupportedException("No displays available");
+                throw new NativeException("No displays available");
             }
         }
 
@@ -732,7 +733,7 @@ namespace Xstream
                         reason = "DISP_CHANGE_FAILED";
                         break;
                 }
-                throw new InvalidOperationException($"ChangeDisplaySettingsEx() failed: {reason}");
+                throw new NativeException("ChangeDisplaySettingsEx() failed: {0}", reason);
             }
             EnumDisplaySettings(displaydata.DeviceName, ENUM_CURRENT_SETTINGS, ref data.DeviceMode);
         }
@@ -750,6 +751,14 @@ namespace Xstream
         {
             public byte data;
         }
+    }
+
+    public class NativeException : Exception
+    {
+        public NativeException(string msg) : base(msg) { }  // 少进一个函数，可以适当提升性能
+        public NativeException(string msg, params object[] args) : base(string.Format(msg, args)) { }
+        public NativeException(string msg, Exception innerException, params object[] args)
+            : base(string.Format(msg, args), innerException) { }
     }
 
     public delegate T DoClone<T>(T src);

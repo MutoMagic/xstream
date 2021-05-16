@@ -298,45 +298,6 @@ namespace Xstream
 
         #endregion
 
-        
-
-        unsafe int GetWindowDisplayIndex()
-        {
-            int i, dist;
-            int closest = -1;
-            int closest_dist = 0x7FFFFFFF;
-            Point center = Point.Empty;
-            Point delta = Point.Empty;
-            Rectangle rect;
-
-            if (Config.Fullscreen)
-            {
-                return 0;
-            }
-
-            // Find the display containing the window
-            center.X = ClientRectangle.X + ClientRectangle.Width / 2;
-            center.Y = ClientRectangle.Y + ClientRectangle.Height / 2;
-            for (i = 0; i < _numDisplays; ++i)
-            {
-                rect = GetDisplayBounds(_displays[i]);
-                if (EnclosePoints(&center, 1, &rect, null))
-                {
-                    return i;
-                }
-
-                delta.X = center.X - (rect.X + rect.Width / 2);
-                delta.Y = center.Y - (rect.Y + rect.Height / 2);
-                dist = delta.X * delta.X + delta.Y * delta.Y;
-                if (dist < closest_dist)
-                {
-                    closest = i;
-                    closest_dist = dist;
-                }
-            }
-            return closest;
-        }
-
         #region window
 
         static long GetWindowStyle()

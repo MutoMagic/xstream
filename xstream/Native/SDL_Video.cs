@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
 
@@ -89,29 +90,55 @@ namespace Xstream
         public const uint SDL_WINDOW_FULLSCREEN_DESKTOP = SDL_WINDOW_FULLSCREEN | 0x00001000;
         public const uint SDL_WINDOW_FOREIGN = 0x00000800;          // window not created by SDL
 
+        // Used to indicate that you don't care what the window position is.
+        public static readonly uint SDL_WINDOWPOS_UNDEFINED = SDL_WindowPos_Undefined_Display(0);
+
+        // Used to indicate that the window position should be centered.
+        public static readonly uint SDL_WINDOWPOS_CENTERED = SDL_WindowPos_Centered_Display(0);
+
+        static Exception SDL_UninitializedVideo
+            => new NativeException("Video subsystem has not been initialized");
         static SDL_VideoDevice _video;
 
         static unsafe bool Check_Window_Magic(SDL_Window window, out Exception retval)
         {
             if (_video == null)
             {
-                retval = new InvalidOperationException("Video subsystem has not been initialized");
+                retval = SDL_UninitializedVideo;
                 return true;
             }
-            fixed (void* magic = &_video.window_magic)
+
+            void* magic = _video.FixedMagic.AddrOfPinnedObject().ToPointer();
+            if (window == null || window.magic != magic)
             {
-                if (window == null || window.magic != magic)
-                {
-                    retval = new InvalidOperationException("Invalid window");
-                    return true;
-                }
+                retval = new NativeException("Invalid window");
+                return true;
             }
 
             retval = null;
             return false;
         }
 
-        #region AddDisplay
+        static unsafe bool Check_Display_Index(int displayIndex, out Exception retval)
+        {
+            if (_video == null)
+            {
+                retval = SDL_UninitializedVideo;
+                return true;
+            }
+
+            if (displayIndex < 0 || displayIndex >= _video.num_displays)
+            {
+                retval = new NativeException("displayIndex must be in the range 0 - {0}"
+                    , _video.num_displays - 1);
+                return true;
+            }
+
+            retval = null;
+            return false;
+        }
+
+        #region add display
 
         static int SDL_AddVideoDisplay(SDL_VideoDisplay display)
         {
@@ -176,7 +203,11 @@ namespace Xstream
             {
                 return a.refresh_rate - b.refresh_rate;
             }
-            return _video.CompareMemory(a.driverdata, b.driverdata);
+            if (_video.CompareMemory != null)
+            {
+                return _video.CompareMemory(a.driverdata, b.driverdata);
+            }
+            return 0;
         }
 
         static bool SDL_AddDisplayMode(SDL_VideoDisplay display, SDL_DisplayMode mode)
@@ -216,7 +247,7 @@ namespace Xstream
 
         static int SDL_GetNumDisplayModesForDisplay(SDL_VideoDisplay display)
         {
-            if (CBool(display.num_display_modes) && _video.GetDisplayModes != null)
+            if (!CBool(display.num_display_modes) && _video.GetDisplayModes != null)
             {
                 _video.GetDisplayModes(display);
                 Array.Sort(display.display_modes, 0, display.num_display_modes
@@ -225,8 +256,37 @@ namespace Xstream
             return display.num_display_modes;
         }
 
-        static int SDL_GetWindowDisplayIndex(SDL_Window window)
+        static Rectangle SDL_GetDisplayBounds(int displayIndex)
         {
+            if (Check_Display_Index(displayIndex, out Exception e)) throw e;
+
+            SDL_VideoDisplay display = _video.displays[displayIndex];
+            if (_video.GetDisplayBounds != null)
+            {
+                return _video.GetDisplayBounds(display);
+            }
+
+            // Assume that the displays are left to right
+            Rectangle rect;
+            if (displayIndex == 0)
+            {
+                rect = Rectangle.Empty;
+                rect.X = 0;
+                rect.Y = 0;
+            }
+            else
+            {
+                rect = SDL_GetDisplayBounds(displayIndex - 1);
+                rect.X += rect.Width;// 默认多屏向右拓展？
+            }
+            rect.Width = display.current_mode.w;
+            rect.Height = display.current_mode.h;
+            return rect;
+        }
+
+        static unsafe int SDL_GetWindowDisplayIndex(SDL_Window window)
+        {
+            int displayIndex;
             int i, dist;
             int closest = -1;
             int closest_dist = 0x7FFFFFFF;
@@ -236,19 +296,74 @@ namespace Xstream
 
             if (Check_Window_Magic(window, out Exception e)) throw e;
 
+            if (SDL_WindowPos_IsUndefined(window.x) ||
+                SDL_WindowPos_IsCentered(window.x))
+            {
+                displayIndex = window.x & 0xFFFF;
+                if (displayIndex >= _video.num_displays)
+                {
+                    displayIndex = 0;
+                }
+                return displayIndex;
+            }
+            if (SDL_WindowPos_IsUndefined(window.y) ||
+                SDL_WindowPos_IsCentered(window.y))
+            {
+                displayIndex = window.y & 0xFFFF;
+                if (displayIndex >= _video.num_displays)
+                {
+                    displayIndex = 0;
+                }
+                return displayIndex;
+            }
 
+            // Find the display containing the window
+            for (i = 0; i < _video.num_displays; ++i)
+            {
+                SDL_VideoDisplay display = _video.displays[i];
+
+                if (display.fullscreen_window == window)
+                {
+                    return i;
+                }
+            }
+            center.X = window.x + window.w / 2;
+            center.Y = window.y + window.h / 2;
+            for (i = 0; i < _video.num_displays; ++i)
+            {
+                rect = SDL_GetDisplayBounds(i);
+                if (SDL_EnclosePoints(&center, 1, &rect, null))
+                {
+                    return i;
+                }
+
+                // 取两个中心点距离最小的那个
+                delta.X = center.X - (rect.X + rect.Width / 2);
+                delta.Y = center.Y - (rect.Y + rect.Width / 2);
+                dist = delta.X * delta.X + delta.Y * delta.Y;// 确保无负数
+                if (dist < closest_dist)
+                {
+                    closest = i;
+                    closest_dist = dist;
+                }
+            }
+            if (closest < 0)
+            {
+                throw new NativeException("Couldn't find any displays");
+            }
+            return closest;
         }
 
-        static ref SDL_VideoDisplay SDL_GetDisplayForWindow(SDL_Window window)
+        static SDL_VideoDisplay SDL_GetDisplayForWindow(SDL_Window window)
         {
             int displayIndex = SDL_GetWindowDisplayIndex(window);
             if (displayIndex >= 0)
             {
-                return ref _video.displays[displayIndex];
+                return _video.displays[displayIndex];
             }
             else
             {
-                throw new NotSupportedException("return null");
+                return null;
             }
         }
 
@@ -257,11 +372,15 @@ namespace Xstream
             SDL_DisplayMode mode,
             SDL_DisplayMode closest)
         {
-            Format target_format;
+            uint target_format;
             int target_refresh_rate;
             int i;
-            DisplayMode current;
-            DisplayMode? match;
+            SDL_DisplayMode current, match;
+
+            if (mode == null || closest == null)
+            {
+                throw new NativeException("Missing desired mode or closest mode parameter");
+            }
 
             // Default to the desktop format
             if (mode.format != 0)
@@ -407,7 +526,7 @@ namespace Xstream
                , fullscreen_mode
                , fullscreen_mode) == null)
             {
-                throw new InvalidOperationException("Couldn't find display mode match");
+                throw new NativeException("Couldn't find display mode match");
             }
 
             return fullscreen_mode;
@@ -516,11 +635,25 @@ namespace Xstream
         }
 
         #endregion
+
+        #region window pos
+
+        const uint SDL_WINDOWPOS_UNDEFINED_MASK = 0x1FFF0000;
+        const uint SDL_WINDOWPOS_CENTERED_MASK = 0x2FFF0000;
+
+        static uint SDL_WindowPos_Undefined_Display(uint x) => SDL_WINDOWPOS_UNDEFINED_MASK | x;
+        static bool SDL_WindowPos_IsUndefined(int x) => (x & 0xFFFF0000) == SDL_WINDOWPOS_UNDEFINED_MASK;
+
+        static uint SDL_WindowPos_Centered_Display(uint x) => SDL_WINDOWPOS_CENTERED_MASK | 0;
+        static bool SDL_WindowPos_IsCentered(int x) => (x & 0xFFFF0000) == SDL_WINDOWPOS_CENTERED_MASK;
+
+        #endregion
     }
 
     public delegate int CompareMemory(SDL_DisplayModeData m1, SDL_DisplayModeData m2);
-    public delegate void VideoInit(SDL_VideoDevice _this);
     public delegate void GetDisplayModes(SDL_VideoDisplay display);
+    public delegate Rectangle GetDisplayBounds(SDL_VideoDisplay display);
+    public delegate void VideoInit(SDL_VideoDevice _this);
 
     public class SDL_Window : Form
     {
@@ -538,8 +671,9 @@ namespace Xstream
     public class SDL_VideoDevice
     {
         public CompareMemory CompareMemory;
-        public VideoInit VideoInit;
         public GetDisplayModes GetDisplayModes;
+        public GetDisplayBounds GetDisplayBounds;
+        public VideoInit VideoInit;
 
         public int num_displays;
         public SDL_VideoDisplay[] displays;
@@ -547,6 +681,17 @@ namespace Xstream
         public byte window_magic;
 
         public SDL_VideoDisplay PrimaryDisplay => displays[0];
+        public GCHandle FixedMagic { get; private set; }
+
+        ~SDL_VideoDevice()
+        {
+            FixedMagic.Free();
+        }
+
+        public SDL_VideoDevice()
+        {
+            FixedMagic = GCHandle.Alloc(window_magic, GCHandleType.Pinned);
+        }
     }
 
     public class SDL_VideoDisplay

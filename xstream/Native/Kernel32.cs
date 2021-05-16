@@ -36,14 +36,14 @@ namespace Xstream
                 , IntPtr.Zero);
             if (len == 0)
             {
-                throw new SystemException($"win32 FormatMessage err: {Marshal.GetLastWin32Error()}");
+                throw new NativeException("win32 FormatMessage err: {0}", Marshal.GetLastWin32Error());
             }
 
             string sRet = Marshal.PtrToStringAnsi(lpMsgBuf);
             lpMsgBuf = LocalFree(lpMsgBuf);
             if (lpMsgBuf != IntPtr.Zero)
             {
-                throw new SystemException($"win32 LocalFree err: {GetLastError()}");
+                throw new NativeException("win32 LocalFree err: {0}", Marshal.GetLastWin32Error());
             }
             return sRet;
         }
