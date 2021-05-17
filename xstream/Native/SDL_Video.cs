@@ -245,17 +245,6 @@ namespace Xstream
 
         #endregion
 
-        static int SDL_GetNumDisplayModesForDisplay(SDL_VideoDisplay display)
-        {
-            if (!CBool(display.num_display_modes) && _video.GetDisplayModes != null)
-            {
-                _video.GetDisplayModes(display);
-                Array.Sort(display.display_modes, 0, display.num_display_modes
-                    , Comparer<SDL_DisplayMode>.Create(CompareModes));
-            }
-            return display.num_display_modes;
-        }
-
         static Rectangle SDL_GetDisplayBounds(int displayIndex)
         {
             if (Check_Display_Index(displayIndex, out Exception e)) throw e;
@@ -365,6 +354,17 @@ namespace Xstream
             {
                 return null;
             }
+        }
+
+        static int SDL_GetNumDisplayModesForDisplay(SDL_VideoDisplay display)
+        {
+            if (!CBool(display.num_display_modes) && _video.GetDisplayModes != null)
+            {
+                _video.GetDisplayModes(display);
+                Array.Sort(display.display_modes, 0, display.num_display_modes
+                    , Comparer<SDL_DisplayMode>.Create(CompareModes));
+            }
+            return display.num_display_modes;
         }
 
         static SDL_DisplayMode SDL_GetClosestDisplayModeForDisplay(
@@ -501,7 +501,7 @@ namespace Xstream
             return null;
         }
 
-        static SDL_DisplayMode GetWindowDisplayMode(SDL_Window window)
+        static SDL_DisplayMode SDL_GetWindowDisplayMode(SDL_Window window)
         {
             SDL_DisplayMode fullscreen_mode;
             SDL_VideoDisplay display;
@@ -533,6 +533,11 @@ namespace Xstream
             }
 
             return fullscreen_mode;
+        }
+
+        static void SDL_SetWindowFullscreen(SDL_Window window, uint flags)
+        {
+
         }
 
         #region enumerated pixel format definitions

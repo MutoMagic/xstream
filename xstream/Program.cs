@@ -261,15 +261,15 @@ namespace Xstream
         public static readonly int H4V3 = Per(4, 3);
         public static readonly int H16V9 = Per(16, 9);
 
-        public static TVResolution EDTV_480P = new TVResolution(640, 480, H4V3);
-        public static TVResolution HDTV_720p = new TVResolution(1280, 720, H16V9);
-        public static TVResolution HDTV_1080i = new TVResolution(1920, 1080, H16V9) { _scan = "1080i" };
-        public static TVResolution HDTV_1080p = new TVResolution(1920, 1080, H16V9) { _scan = "1080p" };
-        public static TVResolution HDTV_1440p = new TVResolution(2560, 1440, H16V9);
-        public static TVResolution UHDTV_4K = new TVResolution(3840, 2160, H16V9);
+        public static readonly TVResolution EDTV_480P = new TVResolution(640, 480, H4V3);
+        public static readonly TVResolution HDTV_720p = new TVResolution(1280, 720, H16V9);
+        public static readonly TVResolution HDTV_1080i = new TVResolution(1920, 1080, H16V9) { _scan = "1080i" };
+        public static readonly TVResolution HDTV_1080p = new TVResolution(1920, 1080, H16V9) { _scan = "1080p" };
+        public static readonly TVResolution HDTV_1440p = new TVResolution(2560, 1440, H16V9);
+        public static readonly TVResolution UHDTV_4K = new TVResolution(3840, 2160, H16V9);
 
-        static Dictionary<int, TVResolution> SupportList = new Dictionary<int, TVResolution>();
-        static Dictionary<int, TVResolution> SpecialList = new Dictionary<int, TVResolution>();
+        public static readonly Dictionary<int, TVResolution> SupportList = new Dictionary<int, TVResolution>();
+        public static readonly Dictionary<int, TVResolution> SpecialList = new Dictionary<int, TVResolution>();
 
         static TVResolution()
         {
