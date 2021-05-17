@@ -252,7 +252,7 @@ namespace Xstream
             SDL_VideoDisplay display = _video.displays[displayIndex];
             if (_video.GetDisplayBounds != null)
             {
-                return _video.GetDisplayBounds(display);
+                return _video.GetDisplayBounds(_video, display);
             }
 
             // Assume that the displays are left to right
@@ -358,9 +358,9 @@ namespace Xstream
 
         static int SDL_GetNumDisplayModesForDisplay(SDL_VideoDisplay display)
         {
-            if (!CBool(display.num_display_modes) && _video.GetDisplayModes != null)
+            if (!CBool(display.num_display_modes) && CBool(_video.GetDisplayModes))
             {
-                _video.GetDisplayModes(display);
+                _video.GetDisplayModes(_video, display);
                 Array.Sort(display.display_modes, 0, display.num_display_modes
                     , Comparer<SDL_DisplayMode>.Create(CompareModes));
             }
@@ -377,7 +377,7 @@ namespace Xstream
             int i;
             SDL_DisplayMode current, match;
 
-            if (mode == null || closest == null)
+            if (CBool(mode) || CBool(closest))
             {
                 throw new NativeException("Missing desired mode or closest mode parameter");
             }
@@ -535,8 +535,152 @@ namespace Xstream
             return fullscreen_mode;
         }
 
+        static void SDL_MinimizeWindow(SDL_Window window)
+        {
+            if (Check_Window_Magic(window, out Exception e)) throw e;
+
+            if (CBool(window.flags & SDL_WINDOW_MINIMIZED))
+            {
+                return;
+            }
+
+            SDL_UpdateFullscreenMode(window, false);
+
+            if (_video.MinimizeWindow != null)
+            {
+                _video.MinimizeWindow(_video, window);
+            }
+        }
+
+        static void SDL_SetDisplayModeForDisplay(SDL_VideoDisplay display, SDL_DisplayMode mode)
+        {
+            SDL_DisplayMode display_mode;
+            SDL_DisplayMode current_mode;
+
+            if (mode != null)
+            {
+                display_mode = mode.DeepCopy();
+
+                // Default to the current mode
+                if (!CBool(display_mode.format))
+                {
+                    display_mode.format = display.current_mode.format;
+                }
+                if (!CBool(display_mode.w))
+                {
+                    display_mode.w = display.current_mode.w;
+                }
+                if (!CBool(display_mode.h))
+                {
+                    display_mode.h = display.current_mode.h;
+                }
+                if (!CBool(display_mode.refresh_rate))
+                {
+                    display_mode.refresh_rate = display.current_mode.refresh_rate;
+                }
+
+                // Get a good video mode, the closest one possible
+                if (SDL_GetClosestDisplayModeForDisplay(display
+                    , display_mode
+                    , display_mode) == null)
+                {
+                    throw new NativeException("No video mode large enough for {0}x{1}"
+                        , display_mode.w
+                        , display_mode.h);
+                }
+            }
+            else
+            {
+                display_mode = display.desktop_mode;
+            }
+
+            // See if there's anything left to do
+            current_mode = display.current_mode;
+            if (CompareMemory(display_mode, current_mode) == 0)
+            {
+                return;
+            }
+
+            // Actually change the display mode
+            if (_video.SetDisplayMode == null)
+            {
+                throw new NativeException("Video driver doesn't support changing display mode");
+            }
+            _video.SetDisplayMode(_video, display, display_mode);
+            display.current_mode = display_mode;
+        }
+
         static void SDL_UpdateFullscreenMode(SDL_Window window, bool fullscreen)
         {
+            SDL_VideoDisplay display = SDL_GetDisplayForWindow(window);
+            SDL_Window other;
+
+            if (fullscreen)
+            {
+                // Hide any other fullscreen windows
+                if (display.fullscreen_window != null &&
+                    display.fullscreen_window != window)
+                {
+                    SDL_MinimizeWindow(window);
+                }
+            }
+
+            // See if anything needs to be done now
+            if ((display.fullscreen_window == window) == fullscreen)
+            {
+                return;
+            }
+
+            // See if there are any fullscreen windows
+            for (other = _video.windows; other != null; other = other.next)
+            {
+                bool setDisplayMode = false;
+
+                if (other == window)
+                {
+                    setDisplayMode = fullscreen;
+                }
+                else if (Fullscreen_Visible(other) && SDL_GetDisplayForWindow(other) == display)
+                {
+                    setDisplayMode = true;
+                }
+
+                if (setDisplayMode)
+                {
+                    SDL_DisplayMode fullscreen_mode;
+
+                    try
+                    {
+                        fullscreen_mode = SDL_GetWindowDisplayMode(other);
+                        bool resized = true;
+
+                        if (other.w == fullscreen_mode.w && other.h == fullscreen_mode.h)
+                        {
+                            resized = false;
+                        }
+
+                        // only do the mode change if we want exclusive fullscreen
+                        if ((window.flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != SDL_WINDOW_FULLSCREEN_DESKTOP)
+                        {
+                            SDL_SetDisplayModeForDisplay(display, fullscreen_mode);
+                        }
+                        else
+                        {
+                            SDL_SetDisplayModeForDisplay(display, null);
+                        }
+
+                        if (_video.SetWindowFullscreen != null)
+                        {
+                            _video.SetWindowFullscreen(_video, other, display, true);
+                        }
+                    }
+                    catch (NativeException e)
+                    {
+                        IgnoreInDebugWriteLine(e);
+                    }
+                }
+            }
+
 
         }
 
@@ -687,11 +831,6 @@ namespace Xstream
         #endregion
     }
 
-    public delegate int CompareMemory(SDL_DisplayModeData m1, SDL_DisplayModeData m2);
-    public delegate void GetDisplayModes(SDL_VideoDisplay display);
-    public delegate Rectangle GetDisplayBounds(SDL_VideoDisplay display);
-    public delegate void VideoInit(SDL_VideoDevice _this);
-
     public class SDL_Window : Form
     {
         public unsafe void* magic;
@@ -702,19 +841,48 @@ namespace Xstream
         public int max_w, max_h;
         public uint flags;
 
-        public SDL_DisplayMode fullscreen_mode; // struct
+        public SDL_DisplayMode fullscreen_mode;// struct
+
+        public SDL_Window prev;
+        public SDL_Window next;
+
+        public IntPtr GetHandle()
+        {
+            if (InvokeRequired)
+            {
+                // 解决窗体关闭时出现“访问已释放句柄”的异常
+                while (!IsHandleCreated)
+                {
+                    if (Disposing || IsDisposed)
+                        return IntPtr.Zero;
+                }
+
+                GetHandleCallback d = new GetHandleCallback(GetHandle);
+                return (IntPtr)Invoke(d, null);
+            }
+            else
+            {
+                return Handle;
+            }
+        }
+
+        delegate IntPtr GetHandleCallback();
     }
 
     public class SDL_VideoDevice
     {
-        public CompareMemory CompareMemory;
-        public GetDisplayModes GetDisplayModes;
-        public GetDisplayBounds GetDisplayBounds;
-        public VideoInit VideoInit;
+        public DVideoInit VideoInit;
+        public DVideoQuit VideoQuit;
+        public DGetDisplayBounds GetDisplayBounds;
+        public DGetDisplayModes GetDisplayModes;
+        public DSetDisplayMode SetDisplayMode;
+        public DCompareMemory CompareMemory;
+        public DMinimizeWindow MinimizeWindow;
+        public DSetWindowFullscreen SetWindowFullscreen;
 
         public int num_displays;
         public SDL_VideoDisplay[] displays;
-        public SDL_Window[] windows;
+        public SDL_Window windows;// 内部链表
         public byte window_magic;
 
         public SDL_VideoDisplay PrimaryDisplay => displays[0];
@@ -729,6 +897,15 @@ namespace Xstream
         {
             FixedMagic = GCHandle.Alloc(window_magic, GCHandleType.Pinned);
         }
+
+        public delegate void DVideoInit(SDL_VideoDevice _this);
+        public delegate void DVideoQuit(SDL_VideoDevice _this);
+        public delegate Rectangle DGetDisplayBounds(SDL_VideoDevice _this, SDL_VideoDisplay display);
+        public delegate void DGetDisplayModes(SDL_VideoDevice _this, SDL_VideoDisplay display);
+        public delegate void DSetDisplayMode(SDL_VideoDevice _this, SDL_VideoDisplay display, SDL_DisplayMode mode);
+        public delegate int DCompareMemory(SDL_DisplayModeData m1, SDL_DisplayModeData m2);
+        public delegate void DMinimizeWindow(SDL_VideoDevice _this, SDL_Window window);
+        public delegate void DSetWindowFullscreen(SDL_VideoDevice _this, SDL_Window window, SDL_VideoDisplay display, bool fullscreen);
     }
 
     public class SDL_VideoDisplay

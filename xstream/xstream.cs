@@ -243,61 +243,6 @@ namespace Xstream
         static uint WM_(SDL_EventType msg) => Native.WM_USER + (uint)msg;
         static SDL_EventType SDL_(uint msg) => (SDL_EventType)(msg - Native.WM_USER);
 
-        #region modes
-
-        void SetDisplayModeForDisplay(ref VideoDisplay display, DisplayMode? mod)
-        {
-            DisplayMode display_mode;
-            DisplayMode current_mode;
-
-            if (mod.HasValue)
-            {
-                display_mode = mod.Value;
-
-                // Default to the current mode
-                if (display_mode.format == 0)
-                {
-                    display_mode.format = display.current_mode.format;
-                }
-                if (display_mode.w == 0)
-                {
-                    display_mode.w = display.current_mode.w;
-                }
-                if (display_mode.h == 0)
-                {
-                    display_mode.h = display.current_mode.h;
-                }
-                if (display_mode.refresh_rate == 0)
-                {
-                    display_mode.refresh_rate = display.current_mode.refresh_rate;
-                }
-
-                // Get a good video mode, the closest one possible
-                if (!GetClosestDisplayModeForDisplay(ref display, display_mode, ref display_mode).HasValue)
-                {
-                    throw Shell.Log("No video mode large enough for {0}x{1}"
-                        , display_mode.w, display_mode.h);
-                }
-            }
-            else
-            {
-                display_mode = display.desktop_mode;
-            }
-
-            // See if there's anything left to do
-            current_mode = display.current_mode;
-            if (Native.memcmp(display_mode, current_mode, Marshal.SizeOf(display_mode)) == 0)
-            {
-                return;
-            }
-
-            // Actually change the display mode
-            SetDisplayMode(display, ref display_mode);
-            display.current_mode = display_mode;
-        }
-
-        #endregion
-
         #region window
 
         static long GetWindowStyle()

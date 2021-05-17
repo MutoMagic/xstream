@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Xstream
 {
@@ -37,6 +38,89 @@ namespace Xstream
         static Dictionary<Type, Delegate> _cachedILShallow = new Dictionary<Type, Delegate>();
         static Dictionary<Type, Delegate> _cachedILDeep = new Dictionary<Type, Delegate>();
 
+        public static void Sleep(int ms)
+        {
+            uint dwMilliseconds = (uint)ms;
+
+            uint max_delay = 0xFFFFFFFF / 1000U;
+            if (dwMilliseconds > max_delay)
+                dwMilliseconds = max_delay;
+            Sleep(dwMilliseconds);// Thread.Sleep(millisecondsTimeout < 0) 会报错
+        }
+
+        public static string GetLastError()
+        {
+            IntPtr lpMsgBuf = IntPtr.Zero;
+            uint len = FormatMessage(
+                FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS
+                , IntPtr.Zero
+                , (uint)Marshal.GetLastWin32Error()
+                , 0
+                , lpMsgBuf
+                , 0
+                , IntPtr.Zero);
+            if (len == 0)
+            {
+                throw new NativeException("win32 FormatMessage err: {0}", Marshal.GetLastWin32Error());
+            }
+
+            string sRet = Marshal.PtrToStringAnsi(lpMsgBuf);
+            lpMsgBuf = LocalFree(lpMsgBuf);
+            if (lpMsgBuf != IntPtr.Zero)
+            {
+                throw new NativeException("win32 LocalFree err: {0}", Marshal.GetLastWin32Error());
+            }
+            return sRet;
+        }
+
+        public static string GetPrivateProfileString(string section, string key, string def, string filePath)
+        {
+            StringBuilder sb = new StringBuilder(0xff);
+            GetPrivateProfileString(section, key, def, sb, (uint)sb.Capacity, filePath);
+            sb.Delete(';');
+            sb.Delete('#');
+            return sb.ToString();
+        }
+
+        public static int CompareMemory<T1, T2>(T1 obj1, T2 obj2, int count) where T1 : struct where T2 : struct
+        {
+            /*
+             * UIntPtr与IntPtr在指针的实现上都一样，似乎没有什么区别。
+             * 需要注意的是：IntPtr与CLS兼容，因为CLR之上有一些语言不支持unsigned。
+             * 请统一使用IntPtr（重要的事情说三遍！！！
+             */
+            IntPtr pCount = new IntPtr(count);
+
+            //GCHandle h1 = GCHandle.Alloc(obj1, GCHandleType.Pinned);
+            //GCHandle h2 = GCHandle.Alloc(obj2, GCHandleType.Pinned);
+            IntPtr p1 = Marshal.AllocHGlobal(count);
+            IntPtr p2 = Marshal.AllocHGlobal(count);
+            Marshal.StructureToPtr(obj1, p1, true);
+            Marshal.StructureToPtr(obj2, p2, true);
+            try
+            {
+                //return CompareMemory(h1.AddrOfPinnedObject(), h2.AddrOfPinnedObject(), pCount);
+                return CompareMemory(p1, p2, pCount);
+            }
+            finally
+            {
+                //h1.Free();
+                //h2.Free();
+                Marshal.FreeHGlobal(p1);
+                Marshal.FreeHGlobal(p2);
+            }
+        }
+
+        public static long SetWindowLongPtr86(HandleRef hWnd, int nIndex, long dwNewLong)
+            => IntPtr.Size == 8 ?
+            SetWindowLongPtr(hWnd, nIndex, (IntPtr)dwNewLong).ToInt64() :
+            SetWindowLong(hWnd, nIndex, (int)dwNewLong);
+
+        public static long GetWindowLongPtr86(HandleRef hWnd, int nIndex)
+            => IntPtr.Size == 8 ?
+            GetWindowLongPtr(hWnd, nIndex).ToInt64() :
+            GetWindowLong(hWnd, nIndex);
+
         public static uint SizeOf(object structure) => (uint)Marshal.SizeOf(structure);
         public static uint SizeOf(Type t) => (uint)Marshal.SizeOf(t);
         public static uint SizeOf<T>() => (uint)Marshal.SizeOf<T>();
@@ -55,6 +139,7 @@ namespace Xstream
         public static bool CBool(double val) => val != 0D;
         public static bool CBool(float val) => val != 0F;
         public static bool CBool(char val) => val != 0;
+        public static bool CBool(object val) => val != null;
         public static bool CBool(IntPtr val) => val != IntPtr.Zero;
         public static unsafe bool CBool(void* val) => val != (void*)0;
         public static unsafe bool CBool(Enum val)
@@ -85,6 +170,9 @@ namespace Xstream
         public static ref T GetValue<T>(object val) => ref Unsafe.As<byte, T>(ref Unsafe.As<RawData>(val).data);
         public static T GetValue<T>(Enum val) => Unsafe.As<byte, T>(ref Unsafe.As<RawData>(val).data);
         public static uint GetValue(Enum val) => Unsafe.As<byte, uint>(ref Unsafe.As<RawData>(val).data);
+
+        public static void IgnoreInDebugWriteLine(Exception e)
+            => Debug.WriteLine("#region No need to handle exceptions\n\n{0}\n\n#endregion", e);
 
         public static T[] Resize<T>(T[] array, int newSize)
         {
@@ -346,6 +434,8 @@ namespace Xstream
 
         #endregion
 
+        #region SDL
+
         static unsafe bool SDL_EnclosePoints(Point* points, int count, Rectangle* clip, Rectangle* result)
         {
             int minx = 0;
@@ -472,6 +562,8 @@ namespace Xstream
             }
             return true;
         }
+
+        #endregion
 
         #region windows modes
 
@@ -662,7 +754,7 @@ namespace Xstream
             }
         }
 
-        static Rectangle WIN_GetDisplayBounds(SDL_VideoDisplay display)
+        static Rectangle WIN_GetDisplayBounds(SDL_VideoDevice _this, SDL_VideoDisplay display)
         {
             ref WIN_DisplayModeData data = ref GetValue<WIN_DisplayModeData>(display.current_mode.driverdata);
 
@@ -673,7 +765,7 @@ namespace Xstream
                 (int)data.DeviceMode.dmPelsHeight);
         }
 
-        static void WIN_GetDisplayModes(SDL_VideoDisplay display)
+        static void WIN_GetDisplayModes(SDL_VideoDevice _this, SDL_VideoDisplay display)
         {
             ref WIN_DisplayData data = ref GetValue<WIN_DisplayData>(display.driverdata);
             uint i;
@@ -704,7 +796,7 @@ namespace Xstream
             //}
         }
 
-        static void WIN_SetDisplayMode(SDL_VideoDisplay display, SDL_DisplayMode mode)
+        static void WIN_SetDisplayMode(SDL_VideoDevice _this, SDL_VideoDisplay display, SDL_DisplayMode mode)
         {
             ref WIN_DisplayData displaydata = ref GetValue<WIN_DisplayData>(display.driverdata);
             ref WIN_DisplayModeData data = ref GetValue<WIN_DisplayModeData>(mode.driverdata);
@@ -738,6 +830,11 @@ namespace Xstream
             EnumDisplaySettings(displaydata.DeviceName, ENUM_CURRENT_SETTINGS, ref data.DeviceMode);
         }
 
+        static void WIN_QuitModes(SDL_VideoDevice _this)
+        {
+            // All fullscreen windows should have restored modes by now
+        }
+
         #endregion
 
         static int WIN_CompareMemory(SDL_DisplayModeData m1, SDL_DisplayModeData m2)
@@ -747,10 +844,54 @@ namespace Xstream
             return CompareMemory(d1, d2, Marshal.SizeOf(d1));
         }
 
+        #region windows window
+
+        static void WIN_MinimizeWindow(SDL_Window window)
+        {
+            HandleRef hwnd = new HandleRef(window, window.GetHandle());
+            ShowWindow(hwnd, SW_MINIMIZE);
+        }
+
+        static void WIN_SetWindowFullscreen(SDL_Window window, SDL_VideoDisplay display, bool fullscreen)
+        {
+
+        }
+
+        #endregion
+
+        delegate T DoClone<T>(T src);
+
         class RawData
         {
             public byte data;
         }
+    }
+
+    static class StringBuilder_Extensions
+    {
+        public static int IndexOf(this StringBuilder sb, char value)
+        {
+            for (int i = 0; i < sb.Length; i++)
+            {
+                if (sb[i] == value)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        public static void Delete(this StringBuilder sb, int startIndex)
+        {
+            if (startIndex != -1)
+            {
+                sb.Length = startIndex;
+            }
+        }
+
+        public static void Delete(this StringBuilder sb, char startIndex)
+            => sb.Delete(sb.IndexOf(startIndex));
     }
 
     public class NativeException : Exception
@@ -761,8 +902,6 @@ namespace Xstream
             : base(string.Format(msg, args), innerException) { }
     }
 
-    public delegate T DoClone<T>(T src);
-
     [AttributeUsage(AttributeTargets.Interface)]
     public class StructInterfaceAttribute : Attribute { }
 
@@ -772,12 +911,11 @@ namespace Xstream
         T ShallowCopy();    // 浅表复制
     }
 
-    public abstract class Prototype<T> : IPrototype<T> where T : class
+    public abstract class Prototype<T> : IPrototype<T>, ICloneable where T : class
     {
         public virtual T DeepCopy() => Native.Clone(Unsafe.As<T>(this), true);
-
-        public virtual T ShallowCopy() //=> (T)MemberwiseClone();
-            => Native.Clone(Unsafe.As<T>(this), false);
+        public virtual T ShallowCopy() => Native.Clone(Unsafe.As<T>(this), false);
+        object ICloneable.Clone() => MemberwiseClone();
     }
 
     [StructLayout(LayoutKind.Sequential)]

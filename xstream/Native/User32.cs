@@ -6,6 +6,26 @@ namespace Xstream
 {
     partial class Native
     {
+        #region ShowWindow()
+
+        public const int SW_HIDE = 0;
+        public const int SW_SHOWNORMAL = 1;
+        public const int SW_NORMAL = 1;
+        public const int SW_SHOWMINIMIZED = 2;
+        public const int SW_SHOWMAXIMIZED = 3;
+        public const int SW_MAXIMIZE = 3;
+        public const int SW_SHOWNOACTIVATE = 4;
+        public const int SW_SHOW = 5;
+        public const int SW_MINIMIZE = 6;
+        public const int SW_SHOWMINNOACTIVE = 7;
+        public const int SW_SHOWNA = 8;
+        public const int SW_RESTORE = 9;
+        public const int SW_SHOWDEFAULT = 10;
+        public const int SW_FORCEMINIMIZE = 11;
+        public const int SW_MAX = 11;
+
+        #endregion
+
         #region SetWindowPos()
 
         public static readonly IntPtr HWND_TOP = new IntPtr(0);
@@ -135,24 +155,6 @@ namespace Xstream
         public const int DISP_CHANGE_BADFLAGS = -4;
         public const int DISP_CHANGE_BADPARAM = -5;
         public const int DISP_CHANGE_BADDUALVIEW = -6;
-
-        #endregion
-
-        #region EnumDisplayDevices()
-
-        public const uint DISPLAY_DEVICE_ATTACHED_TO_DESKTOP = 0x00000001;
-        public const uint DISPLAY_DEVICE_MULTI_DRIVER = 0x00000002;
-        public const uint DISPLAY_DEVICE_PRIMARY_DEVICE = 0x00000004;
-        public const uint DISPLAY_DEVICE_MIRRORING_DRIVER = 0x00000008;
-        public const uint DISPLAY_DEVICE_VGA_COMPATIBLE = 0x00000010;
-        public const uint DISPLAY_DEVICE_REMOVABLE = 0x00000020;
-        public const uint DISPLAY_DEVICE_MODESPRUNED = 0x08000000;
-        public const uint DISPLAY_DEVICE_REMOTE = 0x04000000;
-        public const uint DISPLAY_DEVICE_DISCONNECT = 0x02000000;
-
-        // Child device state
-        public const uint DISPLAY_DEVICE_ACTIVE = 0x00000001;
-        public const uint DISPLAY_DEVICE_ATTACHED = 0x00000002;
 
         #endregion
 
@@ -401,6 +403,24 @@ namespace Xstream
         public const uint DMDITHER_GRAYSCALE = 10;      // Device does grayscaling
 
         public const uint DMDITHER_USER = 256;          // Device-specific dithers start here
+
+        #endregion
+
+        #region EnumDisplayDevices()
+
+        public const uint DISPLAY_DEVICE_ATTACHED_TO_DESKTOP = 0x00000001;
+        public const uint DISPLAY_DEVICE_MULTI_DRIVER = 0x00000002;
+        public const uint DISPLAY_DEVICE_PRIMARY_DEVICE = 0x00000004;
+        public const uint DISPLAY_DEVICE_MIRRORING_DRIVER = 0x00000008;
+        public const uint DISPLAY_DEVICE_VGA_COMPATIBLE = 0x00000010;
+        public const uint DISPLAY_DEVICE_REMOVABLE = 0x00000020;
+        public const uint DISPLAY_DEVICE_MODESPRUNED = 0x08000000;
+        public const uint DISPLAY_DEVICE_REMOTE = 0x04000000;
+        public const uint DISPLAY_DEVICE_DISCONNECT = 0x02000000;
+
+        // Child device state
+        public const uint DISPLAY_DEVICE_ACTIVE = 0x00000001;
+        public const uint DISPLAY_DEVICE_ATTACHED = 0x00000002;
 
         #endregion
 
@@ -698,16 +718,6 @@ namespace Xstream
 
         #endregion
 
-        public static long SetWindowLongPtr86(HandleRef hWnd, int nIndex, long dwNewLong)
-            => IntPtr.Size == 8 ?
-            SetWindowLongPtr(hWnd, nIndex, (IntPtr)dwNewLong).ToInt64() :
-            SetWindowLong(hWnd, nIndex, (int)dwNewLong);
-
-        public static long GetWindowLongPtr86(HandleRef hWnd, int nIndex)
-            => IntPtr.Size == 8 ?
-            GetWindowLongPtr(hWnd, nIndex).ToInt64() :
-            GetWindowLong(hWnd, nIndex);
-
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         public extern static bool DestroyIcon(IntPtr hIcon);
@@ -727,15 +737,15 @@ namespace Xstream
 
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool EnumDisplaySettings(string lpszDeviceName, uint iModeNum, ref DEVMODE lpDevMode);
-
-        [DllImport("user32.dll", CharSet = CharSet.Auto)]
-        [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool EnumDisplayDevices(
             string lpDevice,
             uint iDevNum,
             ref DISPLAY_DEVICE lpDisplayDevice,
             uint dwFlags);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool EnumDisplaySettings(string lpszDeviceName, uint iModeNum, ref DEVMODE lpDevMode);
 
         [DllImport("user32.dll")]
         public static extern int ChangeDisplaySettingsEx(
@@ -746,10 +756,16 @@ namespace Xstream
             IntPtr lParam);
 
         [DllImport("user32.dll")]
-        static extern int GetWindowLong(HandleRef hWnd, int nIndex);
+        public static extern int GetWindowLong(HandleRef hWnd, int nIndex);
 
         [DllImport("user32.dll")]
-        static extern IntPtr GetWindowLongPtr(HandleRef hWnd, int nIndex);
+        public static extern IntPtr GetWindowLongPtr(HandleRef hWnd, int nIndex);
+
+        [DllImport("user32.dll")]
+        public static extern int SetWindowLong(HandleRef hWnd, int nIndex, int dwNewLong);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr SetWindowLongPtr(HandleRef hWnd, int nIndex, IntPtr dwNewLong);
 
         [DllImport("user32.dll")]
         public static extern IntPtr GetMenu(HandleRef hWnd);
@@ -758,13 +774,8 @@ namespace Xstream
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool AdjustWindowRectEx(ref RECT lpRect, uint dwStyle, bool bMenu, uint dwExStyle);
 
-        [DllImport("user32.dll")]
-        static extern int SetWindowLong(HandleRef hWnd, int nIndex, int dwNewLong);
-
-        [DllImport("user32.dll")]
-        static extern IntPtr SetWindowLongPtr(HandleRef hWnd, int nIndex, IntPtr dwNewLong);
-
         [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool SetWindowPos(
             HandleRef hWnd,
             IntPtr hWndInsertAfter,
@@ -773,6 +784,10 @@ namespace Xstream
             int cx,
             int cy,
             uint uFlags);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool ShowWindow(HandleRef hWnd, int nCmdShow);
     }
 
     [StructLayout(LayoutKind.Sequential)]
