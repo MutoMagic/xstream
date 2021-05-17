@@ -383,7 +383,7 @@ namespace Xstream
             }
 
             // Default to the desktop format
-            if (mode.format != 0)
+            if (CBool(mode.format))
             {
                 target_format = mode.format;
             }
@@ -393,7 +393,7 @@ namespace Xstream
             }
 
             // Default to the desktop refresh rate
-            if (mode.refresh_rate != 0)
+            if (CBool(mode.refresh_rate))
             {
                 target_refresh_rate = mode.refresh_rate;
             }
@@ -403,18 +403,18 @@ namespace Xstream
             }
 
             match = null;
-            for (i = 0; i < GetNumDisplayModesForDisplay(ref display); ++i)
+            for (i = 0; i < SDL_GetNumDisplayModesForDisplay(display); ++i)
             {
                 current = display.display_modes[i];
 
-                if (current.w != 0 && (current.w < mode.w))
+                if (CBool(current.w) && (current.w < mode.w))
                 {
                     // Out of sorted modes large enough here
                     break;
                 }
-                if (current.h != 0 && (current.h < mode.h))
+                if (CBool(current.h) && (current.h < mode.h))
                 {
-                    if (current.w != 0 && (current.w == mode.w))
+                    if (CBool(current.w) && (current.w == mode.w))
                     {
                         // Out of sorted modes large enough here
                         break;
@@ -427,21 +427,24 @@ namespace Xstream
                      */
                     continue;
                 }
-                if (!match.HasValue || current.w < match.Value.w || current.h < match.Value.h)
+                if (match != null || current.w < match.w || current.h < match.h)
                 {
                     match = current;
                     continue;
                 }
-                if (current.format != match.Value.format)
+                if (current.format != match.format)
                 {
                     // Sorted highest depth to lowest
-                    if (current.format == target_format)
+                    if (current.format == target_format ||
+                        (SDL_BitsPerPixel(current.format) >= SDL_BitsPerPixel(target_format)
+                        && SDL_PixelType(current.format) == SDL_PixelType(target_format))
+                        )
                     {
                         match = current;
                     }
                     continue;
                 }
-                if (current.refresh_rate != match.Value.refresh_rate)
+                if (current.refresh_rate != match.refresh_rate)
                 {
                     // Sorted highest refresh to lowest
                     if (current.refresh_rate >= target_refresh_rate)
@@ -450,46 +453,46 @@ namespace Xstream
                     }
                 }
             }
-            if (match.HasValue)
+            if (match != null)
             {
-                if (match.Value.format != 0)
+                if (CBool(match.format))
                 {
-                    closest.format = match.Value.format;
+                    closest.format = match.format;
                 }
                 else
                 {
                     closest.format = mode.format;
                 }
-                if (match.Value.w != 0 && match.Value.h != 0)
+                if (CBool(match.w) && CBool(match.h))
                 {
-                    closest.w = match.Value.w;
-                    closest.h = match.Value.h;
+                    closest.w = match.w;
+                    closest.h = match.h;
                 }
                 else
                 {
                     closest.w = mode.w;
                     closest.h = mode.h;
                 }
-                if (match.Value.refresh_rate != 0)
+                if (CBool(match.refresh_rate))
                 {
-                    closest.refresh_rate = match.Value.refresh_rate;
+                    closest.refresh_rate = match.refresh_rate;
                 }
                 else
                 {
                     closest.refresh_rate = mode.refresh_rate;
                 }
-                closest.DeviceMode = match.Value.DeviceMode;
+                closest.driverdata = match.driverdata;
 
                 // Pick some reasonable defaults if the app and driver don't care
-                if (closest.format == 0)
+                if (!CBool(closest.format))
                 {
-                    closest.format = Format.X8R8G8B8;
+                    closest.format = SDL_PIXELFORMAT_RGB888;
                 }
-                if (closest.w == 0)
+                if (!CBool(closest.w))
                 {
                     closest.w = 640;
                 }
-                if (closest.h == 0)
+                if (!CBool(closest.h))
                 {
                     closest.h = 480;
                 }
@@ -505,12 +508,12 @@ namespace Xstream
 
             if (Check_Window_Magic(window, out Exception e)) throw e;
 
-            fullscreen_mode = window.fullscreen_mode;
-            if (fullscreen_mode.w == 0)
+            fullscreen_mode = window.fullscreen_mode.DeepCopy();
+            if (!CBool(fullscreen_mode.w))
             {
                 fullscreen_mode.w = window.w;
             }
-            if (fullscreen_mode.h == 0)
+            if (!CBool(fullscreen_mode.h))
             {
                 fullscreen_mode.h = window.h;
             }
@@ -665,7 +668,7 @@ namespace Xstream
         public int max_w, max_h;
         public uint flags;
 
-        public SDL_DisplayMode fullscreen_mode;
+        public SDL_DisplayMode fullscreen_mode; // struct
     }
 
     public class SDL_VideoDevice
@@ -707,7 +710,7 @@ namespace Xstream
 
         public SDL_VideoDevice device;
 
-        public SDL_DisplayData driverdata;
+        public SDL_DisplayData driverdata;      // void *driverdata;
     }
 
     public class SDL_DisplayMode : Prototype<SDL_DisplayMode>

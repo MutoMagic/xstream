@@ -775,7 +775,9 @@ namespace Xstream
     public abstract class Prototype<T> : IPrototype<T> where T : class
     {
         public virtual T DeepCopy() => Native.Clone(Unsafe.As<T>(this), true);
-        public virtual T ShallowCopy() => (T)MemberwiseClone();
+
+        public virtual T ShallowCopy() //=> (T)MemberwiseClone();
+            => Native.Clone(Unsafe.As<T>(this), false);
     }
 
     [StructLayout(LayoutKind.Sequential)]
