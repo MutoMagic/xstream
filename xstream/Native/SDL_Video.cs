@@ -427,7 +427,7 @@ namespace Xstream
                      */
                     continue;
                 }
-                if (match != null || current.w < match.w || current.h < match.h)
+                if (match == null || current.w < match.w || current.h < match.h)
                 {
                     match = current;
                     continue;
@@ -535,9 +535,27 @@ namespace Xstream
             return fullscreen_mode;
         }
 
-        static void SDL_SetWindowFullscreen(SDL_Window window, uint flags)
+        static void SDL_UpdateFullscreenMode(SDL_Window window, bool fullscreen)
         {
 
+        }
+
+        static void SDL_SetWindowFullscreen(SDL_Window window, uint flags)
+        {
+            if (Check_Window_Magic(window, out Exception e)) throw e;
+
+            flags &= FULLSCREEN_MASK;
+
+            if (flags == (window.flags & FULLSCREEN_MASK))
+            {
+                return;
+            }
+
+            // clear the previous flags and OR in the new ones
+            window.flags &= ~FULLSCREEN_MASK;
+            window.flags |= flags;
+
+            SDL_UpdateFullscreenMode(window, Fullscreen_Visible(window));
         }
 
         #region enumerated pixel format definitions
@@ -641,6 +659,17 @@ namespace Xstream
             L2101010,
             L1010102
         }
+
+        #endregion
+
+        #region fullscreen
+
+        const uint FULLSCREEN_MASK = SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_FULLSCREEN;
+
+        static bool Fullscreen_Visible(SDL_Window w)
+            => CBool(w.flags & SDL_WINDOW_FULLSCREEN)
+            && CBool(w.flags & SDL_WINDOW_SHOWN)
+            && !CBool(w.flags & SDL_WINDOW_MINIMIZED);
 
         #endregion
 
