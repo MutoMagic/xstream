@@ -92,11 +92,10 @@ namespace Xstream
 
         // Used to indicate that you don't care what the window position is.
         public static readonly uint SDL_WINDOWPOS_UNDEFINED = SDL_WindowPos_Undefined_Display(0);
-
         // Used to indicate that the window position should be centered.
         public static readonly uint SDL_WINDOWPOS_CENTERED = SDL_WindowPos_Centered_Display(0);
 
-        static Exception SDL_UninitializedVideo
+        static Exception SDL_UninitializedVideo // 像属性一样的方法（便于书写），本质上还是方法
             => new NativeException("Video subsystem has not been initialized");
         static SDL_VideoDevice _video;
 
@@ -905,7 +904,11 @@ namespace Xstream
         public delegate void DSetDisplayMode(SDL_VideoDevice _this, SDL_VideoDisplay display, SDL_DisplayMode mode);
         public delegate int DCompareMemory(SDL_DisplayModeData m1, SDL_DisplayModeData m2);
         public delegate void DMinimizeWindow(SDL_VideoDevice _this, SDL_Window window);
-        public delegate void DSetWindowFullscreen(SDL_VideoDevice _this, SDL_Window window, SDL_VideoDisplay display, bool fullscreen);
+        public delegate void DSetWindowFullscreen(
+            SDL_VideoDevice _this,
+            SDL_Window window,
+            SDL_VideoDisplay display,
+            bool fullscreen);
     }
 
     public class SDL_VideoDisplay

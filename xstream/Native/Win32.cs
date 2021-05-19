@@ -924,16 +924,16 @@ namespace Xstream
             }
             else
             {
-                rect.Left = 0;
-                rect.Top = 0;
-                rect.Right = window.w;
-                rect.Bottom = window.h;
+                rect.left = 0;
+                rect.top = 0;
+                rect.right = window.w;
+                rect.bottom = window.h;
                 menu = CBool(style & WS_CHILDWINDOW) ? false : (GetMenu(hwnd) != IntPtr.Zero);
                 AdjustWindowRectEx(ref rect, (uint)style, menu, 0);
-                w = rect.Right - rect.Left;
-                h = rect.Bottom - rect.Top;
-                x = window.x + rect.Left;
-                y = window.y + rect.Top;
+                w = rect.right - rect.left; // rect.Width
+                h = rect.bottom - rect.top; // rect.Height
+                x = window.x + rect.left;   // window.x + rect.X
+                y = window.y + rect.top;    // window.y + rect.Y
             }
             SetWindowLongPtr86(hwnd, GWL_STYLE, style);
             SetWindowPos(hwnd, top, x, y, w, h, SWP_NOCOPYBITS);
