@@ -35,11 +35,12 @@ namespace Xstream
         public const long STYLE_RESIZABLE = WS_THICKFRAME | WS_MAXIMIZEBOX;
         public const long STYLE_MASK = STYLE_FULLSCREEN | STYLE_BORDERLESS | STYLE_NORMAL | STYLE_RESIZABLE;
 
-        public static readonly WIN_DisplayData _EMPTY_WIN_DISPLAYDATA = new WIN_DisplayData();
-        public static readonly WIN_DisplayModeData _EMPTY_WIN_DISPLAYMODEDATA = new WIN_DisplayModeData();
-        public static readonly DEVMODE _EMPTY_DEVMODE = new DEVMODE();
-        public static readonly DISPLAY_DEVICE _EMPTY_DISPLAY_DEVICE = new DISPLAY_DEVICE();
-        public static readonly BITMAPINFO _EMPTY_BITMAPINFO = new BITMAPINFO();
+        public static readonly WIN_DisplayData _EMPTY_WIN_DISPLAYDATA;
+        public static readonly WIN_DisplayModeData _EMPTY_WIN_DISPLAYMODEDATA;
+        public static readonly DEVMODE _EMPTY_DEVMODE;
+        public static readonly DISPLAY_DEVICE _EMPTY_DISPLAY_DEVICE;
+        public static readonly RECT _EMPTY_RECT;
+        public static readonly BITMAPINFO _EMPTY_BITMAPINFO;
 
         static Dictionary<Type, Delegate> _cachedILShallow = new Dictionary<Type, Delegate>();
         static Dictionary<Type, Delegate> _cachedILDeep = new Dictionary<Type, Delegate>();
@@ -851,15 +852,91 @@ namespace Xstream
 
         #region windows window
 
-        static void WIN_MinimizeWindow(SDL_Window window)
+        static long GetWindowStyle(SDL_Window window)
+        {
+            long style = 0;
+
+            if (CBool(window.flags & SDL_WINDOW_FULLSCREEN))
+            {
+                style |= STYLE_FULLSCREEN;
+            }
+            else
+            {
+                if (CBool(window.flags & SDL_WINDOW_BORDERLESS))
+                {
+                    style |= STYLE_BORDERLESS;
+                }
+                else
+                {
+                    style |= STYLE_NORMAL;
+                }
+                if (CBool(window.flags & SDL_WINDOW_RESIZABLE))
+                {
+                    style |= STYLE_RESIZABLE;
+                }
+            }
+            return style;
+        }
+
+        static void WIN_MinimizeWindow(SDL_VideoDevice _this, SDL_Window window)
         {
             HandleRef hwnd = new HandleRef(window, window.GetHandle());
             ShowWindow(hwnd, SW_MINIMIZE);
         }
 
-        static void WIN_SetWindowFullscreen(SDL_Window window, SDL_VideoDisplay display, bool fullscreen)
+        static void WIN_SetWindowFullscreen(
+            SDL_VideoDevice _this,
+            SDL_Window window,
+            SDL_VideoDisplay display,
+            bool fullscreen)
         {
+            HandleRef hwnd = new HandleRef(window, window.GetHandle());
+            RECT rect = _EMPTY_RECT;
+            Rectangle bounds;
+            long style;
+            IntPtr top;
+            bool menu;
+            int x, y;
+            int w, h;
 
+            if ((window.flags & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_INPUT_FOCUS))
+                == (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_INPUT_FOCUS))
+            {
+                top = HWND_TOPMOST;
+            }
+            else
+            {
+                top = HWND_NOTOPMOST;
+            }
+
+            style = GetWindowLongPtr86(hwnd, GWL_STYLE);
+            style &= ~STYLE_MASK;
+            style |= GetWindowStyle(window);
+
+            bounds = WIN_GetDisplayBounds(_this, display);
+
+            if (fullscreen)
+            {
+                x = bounds.X;
+                y = bounds.Y;
+                w = bounds.Width;
+                h = bounds.Height;
+            }
+            else
+            {
+                rect.Left = 0;
+                rect.Top = 0;
+                rect.Right = window.w;
+                rect.Bottom = window.h;
+                menu = CBool(style & WS_CHILDWINDOW) ? false : (GetMenu(hwnd) != IntPtr.Zero);
+                AdjustWindowRectEx(ref rect, (uint)style, menu, 0);
+                w = rect.Right - rect.Left;
+                h = rect.Bottom - rect.Top;
+                x = window.x + rect.Left;
+                y = window.y + rect.Top;
+            }
+            SetWindowLongPtr86(hwnd, GWL_STYLE, style);
+            SetWindowPos(hwnd, top, x, y, w, h, SWP_NOCOPYBITS);
         }
 
         #endregion
