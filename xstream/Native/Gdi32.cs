@@ -20,7 +20,18 @@ namespace Xstream
         #endregion
 
         [DllImport("gdi32.dll")]
-        public static extern IntPtr CreateDC(string pwszDriver, string pwszDevice, string pszPort, IntPtr pdm);
+        public static extern IntPtr CreateDC(
+            string pwszDriver,
+            string pwszDevice,
+            string pszPort,
+            IntPtr pdm);// NULL
+
+        [DllImport("gdi32.dll")]
+        public static extern IntPtr CreateDC(
+            string pwszDriver,
+            string pwszDevice,
+            string pszPort,
+            ref DEVMODE pdm);
 
         [DllImport("gdi32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]

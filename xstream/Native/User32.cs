@@ -731,6 +731,15 @@ namespace Xstream
             uint wMsgFilterMax,
             uint wRemoveMsg);
 
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool PeekMessage(
+            out MSG lpMsg,
+            HandleRef hWnd,
+            uint wMsgFilterMin,
+            uint wMsgFilterMax,
+            uint wRemoveMsg);
+
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool PostThreadMessage(uint idThread, uint Msg, IntPtr wParam, IntPtr lParam);
@@ -751,7 +760,7 @@ namespace Xstream
         public static extern int ChangeDisplaySettingsEx(
             string lpszDeviceName,
             ref DEVMODE lpDevMode,
-            IntPtr hwnd,// NULL
+            IntPtr hwnd,// Reserved; must be NULL.
             uint dwflags,
             IntPtr lParam);
 

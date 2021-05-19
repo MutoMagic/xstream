@@ -35,6 +35,12 @@ namespace Xstream
         public const long STYLE_RESIZABLE = WS_THICKFRAME | WS_MAXIMIZEBOX;
         public const long STYLE_MASK = STYLE_FULLSCREEN | STYLE_BORDERLESS | STYLE_NORMAL | STYLE_RESIZABLE;
 
+        public static readonly WIN_DisplayData _EMPTY_WIN_DISPLAYDATA = new WIN_DisplayData();
+        public static readonly WIN_DisplayModeData _EMPTY_WIN_DISPLAYMODEDATA = new WIN_DisplayModeData();
+        public static readonly DEVMODE _EMPTY_DEVMODE = new DEVMODE();
+        public static readonly DISPLAY_DEVICE _EMPTY_DISPLAY_DEVICE = new DISPLAY_DEVICE();
+        public static readonly BITMAPINFO _EMPTY_BITMAPINFO = new BITMAPINFO();
+
         static Dictionary<Type, Delegate> _cachedILShallow = new Dictionary<Type, Delegate>();
         static Dictionary<Type, Delegate> _cachedILDeep = new Dictionary<Type, Delegate>();
 
@@ -111,15 +117,15 @@ namespace Xstream
             }
         }
 
-        public static long SetWindowLongPtr86(HandleRef hWnd, int nIndex, long dwNewLong)
-            => IntPtr.Size == 8 ?
-            SetWindowLongPtr(hWnd, nIndex, (IntPtr)dwNewLong).ToInt64() :
-            SetWindowLong(hWnd, nIndex, (int)dwNewLong);
-
         public static long GetWindowLongPtr86(HandleRef hWnd, int nIndex)
             => IntPtr.Size == 8 ?
             GetWindowLongPtr(hWnd, nIndex).ToInt64() :
             GetWindowLong(hWnd, nIndex);
+
+        public static long SetWindowLongPtr86(HandleRef hWnd, int nIndex, long dwNewLong)
+            => IntPtr.Size == 8 ?
+            SetWindowLongPtr(hWnd, nIndex, (IntPtr)dwNewLong).ToInt64() :
+            SetWindowLong(hWnd, nIndex, (int)dwNewLong);
 
         public static uint SizeOf(object structure) => (uint)Marshal.SizeOf(structure);
         public static uint SizeOf(Type t) => (uint)Marshal.SizeOf(t);
@@ -570,7 +576,7 @@ namespace Xstream
         static unsafe bool WIN_GetDisplayMode(string deviceName, uint index, SDL_DisplayMode mode)
         {
             WIN_DisplayModeData data;
-            DEVMODE devmode = new DEVMODE();
+            DEVMODE devmode = _EMPTY_DEVMODE;
             IntPtr hdc;
 
             devmode.dmSize = (ushort)Marshal.SizeOf(devmode);
@@ -580,7 +586,7 @@ namespace Xstream
                 return false;
             }
 
-            data = new WIN_DisplayModeData();
+            data = _EMPTY_WIN_DISPLAYMODEDATA;
             data.DeviceMode = devmode;
             data.DeviceMode.dmFields =
                 DM_BITSPERPEL |
@@ -602,7 +608,7 @@ namespace Xstream
                 BITMAPINFO bmi;
                 IntPtr hbm;
 
-                bmi = new BITMAPINFO();
+                bmi = _EMPTY_BITMAPINFO;
                 bmi.bmiHeader.Init();
 
                 hbm = CreateCompatibleBitmap(hdc, 1, 1);
@@ -676,7 +682,7 @@ namespace Xstream
             SDL_VideoDisplay display = new SDL_VideoDisplay();
             WIN_DisplayData displaydata;
             SDL_DisplayMode mod = new SDL_DisplayMode();
-            DISPLAY_DEVICE device = new DISPLAY_DEVICE();
+            DISPLAY_DEVICE device = _EMPTY_DISPLAY_DEVICE;
 
             Debug.WriteLine("Display: {0}", deviceName);
             if (!WIN_GetDisplayMode(deviceName, ENUM_CURRENT_SETTINGS, mod))
@@ -684,7 +690,7 @@ namespace Xstream
                 return false;
             }
 
-            displaydata = new WIN_DisplayData();
+            displaydata = _EMPTY_WIN_DISPLAYDATA;
             displaydata.DeviceName = deviceName;
 
             device.cb = SizeOf(device);
@@ -703,9 +709,8 @@ namespace Xstream
         {
             int pass;
             uint i, j, count;
-            DISPLAY_DEVICE device;
+            DISPLAY_DEVICE device = _EMPTY_DISPLAY_DEVICE;
 
-            device = new DISPLAY_DEVICE();
             device.cb = SizeOf(device);
 
             // Get the primary display in the first pass
